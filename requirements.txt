@@ -1,0 +1,3 @@
+# The core (qd/, research/, tests/) is stdlib-only and needs none of these.
+# They are required only for the LIVE data and broker adapters.
+requests>=2.31.0

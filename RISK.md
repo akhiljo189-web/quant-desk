@@ -163,6 +163,12 @@ bar is legitimately yesterday's. An alarm that cries wolf every morning at
   first prints, spreads are wide, and the tape is not yet describing the day.
 - No entries in the last **20 minutes** — a position opened there cannot reach
   its target before the close, so it becomes an unplanned overnight hold.
+- **Spread check at send time**, not during scanning: the spread that matters
+  is the one at the moment of execution. Entry-level data plans exclude quote
+  data, and in that state the spread is *unmeasurable rather than acceptable* —
+  the gap is journalled once and the cost model becomes the only defence
+  against wide markets, which makes the 2x cost stress load-bearing rather
+  than decorative.
 - Extended hours **off** by default. Tradeable is not the same as sensible: a
   stop that is sane at noon is noise at 04:30.
 

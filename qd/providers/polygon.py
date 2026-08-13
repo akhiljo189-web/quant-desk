@@ -172,17 +172,57 @@ class PolygonProvider:
         return out
 
     def quote(self, symbol: str, at: Optional[datetime] = None) -> Optional[Quote]:
-        payload = self.http.get(
-            f"/v2/last/nbbo/{symbol.upper()}", tag=f"quote-{symbol}"
-        )
+        """Current NBBO, or None when the plan does not entitle quote data.
+
+        Tries the SNAPSHOT endpoint first and the dedicated NBBO endpoint
+        second. On the entry-level Stocks plan `Trades` and `Quotes` are not
+        included while `Snapshot` is, and the snapshot's embedded `lastQuote`
+        is often the only bid/ask available.
+
+        Returning None rather than raising is deliberate: a missing quote must
+        degrade the spread check to "unmeasurable" — which the caller treats as
+        a reason to be careful — rather than crash a live cycle over a data
+        entitlement.
+        """
+        # Snapshot first: included at the tier where the NBBO endpoint is not.
+        try:
+            payload = self.http.get(
+                f"/v2/snapshot/locale/us/markets/stocks/tickers/{symbol.upper()}",
+                tag=f"snapshot-{symbol}",
+            )
+            ticker = (payload or {}).get("ticker") or {}
+            lq = ticker.get("lastQuote") or {}
+            bid, ask = float(lq.get("p", 0.0)), float(lq.get("P", 0.0))
+            if bid > 0 and ask > 0:
+                return Quote(
+                    symbol=symbol.upper(),
+                    ts=_from_ns(int(lq["t"])) if lq.get("t") else ensure_utc(at or datetime.now(UTC)),
+                    bid=bid, ask=ask,
+                    bid_size=float(lq.get("s", 0.0)),
+                    ask_size=float(lq.get("S", 0.0)),
+                )
+        except ProviderError as exc:
+            logger.debug("%s: snapshot quote unavailable: %s", symbol, exc)
+
+        try:
+            payload = self.http.get(
+                f"/v2/last/nbbo/{symbol.upper()}", tag=f"quote-{symbol}"
+            )
+        except ProviderError as exc:
+            # 403 here means the plan excludes Quotes. Expected, not an error.
+            logger.debug("%s: NBBO unavailable on this plan: %s", symbol, exc)
+            return None
+
         if not payload or "results" not in payload:
             return None
         r = payload["results"]
+        bid, ask = float(r.get("p", 0.0)), float(r.get("P", 0.0))
+        if bid <= 0 or ask <= 0:
+            return None
         return Quote(
             symbol=symbol.upper(),
             ts=_from_ns(int(r.get("t", 0))) if r.get("t") else ensure_utc(at or datetime.now(UTC)),
-            bid=float(r.get("p", 0.0)),
-            ask=float(r.get("P", 0.0)),
+            bid=bid, ask=ask,
             bid_size=float(r.get("s", 0.0)),
             ask_size=float(r.get("S", 0.0)),
         )

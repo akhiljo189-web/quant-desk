@@ -133,6 +133,10 @@ class Engine:
         # closes. Caching per trading day turns a per-cycle recomputation over
         # a year of history into one per symbol per day.
         self._context_cache: dict[tuple[str, str], ContextState] = {}
+        # Whether the "no quote entitlement" warning has been emitted. It is a
+        # standing property of the data plan, so it is said once, not once per
+        # rejected candidate.
+        self._spread_gap_logged = False
 
     # ── data ─────────────────────────────────────────────────────────────────
 
@@ -463,6 +467,46 @@ class Engine:
         if not decision.approved:
             self.journal.assessment(a, taken=False, blocked=decision.reason)
             return
+
+        # Final spread gate, checked HERE rather than during scanning. The
+        # spread that matters is the one at the moment of execution, and
+        # quoting every candidate every cycle would burn the API budget on
+        # symbols that were never going to trade.
+        #
+        # An unavailable quote is not a pass. Entry-level data plans exclude
+        # quote data entirely, and in that state the spread is unmeasurable,
+        # not acceptable — so it is recorded explicitly. A gate that silently
+        # succeeds when it cannot measure anything is not a gate, which is
+        # exactly what this check was before it was wired up.
+        spread_bps: Optional[float] = None
+        try:
+            q = self.p.market.quote(intent.symbol, now)
+            if q is not None and q.is_valid:
+                spread_bps = q.spread_bps
+        except Exception as exc:
+            logger.debug("%s: quote lookup failed: %s", intent.symbol, exc)
+
+        if spread_bps is not None:
+            if spread_bps > self.s.universe.max_spread_bps:
+                self.journal.assessment(
+                    a, taken=False,
+                    blocked=f"spread {spread_bps:.1f}bps above "
+                            f"{self.s.universe.max_spread_bps}bps at send time",
+                )
+                return
+        elif not self._spread_gap_logged:
+            # Once per process, not per decision — this is a standing property
+            # of the data plan, not an event.
+            self._spread_gap_logged = True
+            logger.warning(
+                "spread checks are UNAVAILABLE on this data plan (no quote "
+                "entitlement) — the cost model is the only defence against "
+                "wide markets; treat the 2x cost stress as load-bearing"
+            )
+            self.journal.event(
+                "spread checks unavailable",
+                detail="no quote data from provider; max_spread_bps cannot be enforced",
+            )
 
         limit = self._limit_price(intent)
         order = Order(

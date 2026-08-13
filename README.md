@@ -95,7 +95,7 @@ engine over it. It should report **no trades** — synthetic data has no
 structure, so trading it would indicate a leak rather than a discovery.
 
 ```bash
-python3 -m unittest discover -s tests    # 176 tests
+python3 -m unittest discover -s tests    # 195 tests
 python3 -m qd.cli gate --live            # why live trading is blocked
 python3 -m qd.cli replay --symbols AAPL,MSFT --cost 2.0
 python3 -m qd.cli journal                # what it did, and what it declined
@@ -105,7 +105,7 @@ For live data and paper trading:
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env        # add POLYGON_API_KEY, ALPACA_KEY_ID, ALPACA_SECRET_KEY
+cp .env.example .env        # POLYGON_API_KEY, FINNHUB_API_KEY, ALPACA_KEY_ID/SECRET
 python3 -m qd.cli run       # paper by default
 ```
 
@@ -158,14 +158,22 @@ forever, and it cannot have been trained on data that includes the outcome. To
 use a model, run it at ingest and cache the label on the record
 (`classify_with`) — never at decision time.
 
-### Earnings — `qd/features/earnings.py`
+### Earnings — `qd/features/earnings.py` + `qd/providers/finnhub.py`
 Two jobs, and the first matters more. **Blackout:** never hold through a
 scheduled print — a stop does not fill at its price across a gap, it fills at
 the first print, and every risk number elsewhere assumes the stop roughly
-holds. **PEAD:** post-earnings drift as one channel among four. When the
-reported surprise and the market's own reaction disagree, it follows the
-reaction and cuts confidence — the tape saw the whole release, consensus EPS
+holds. **PEAD:** the trigger — the only channel that can originate a trade.
+When the reported surprise and the market's own reaction disagree, it follows
+the reaction and cuts confidence: the tape saw the whole release, consensus EPS
 saw one line.
+
+The Finnhub adapter carries the system's most leak-sensitive parsing. Finnhub
+returns each event's *current* state, so a row for last quarter holds the
+scheduled date and the actual EPS side by side, with nothing marking which was
+knowable when. Loaded naively, every backtest would know each quarter's results
+weeks early and PEAD would look perfectly predictable — because to that
+backtest it would be. The adapter splits the row across `scheduled_known_at`
+and `released_at`, gated independently, and `tests/test_finnhub.py` pins it.
 
 ### Options flow — `qd/features/optionsflow.py`
 Built from the raw tape rather than a vendor's pre-scored feed, because a score
@@ -218,7 +226,7 @@ risk, never to sit on it.
 
 ## Honest status
 
-- The **infrastructure** is built and tested: 176 tests, including explicit
+- The **infrastructure** is built and tested: 195 tests, including explicit
   look-ahead guards and a null test proving the evaluator reports NO EDGE on
   random data.
 - **No edge has been demonstrated**, and the hypothesis above is expected to
@@ -270,7 +278,7 @@ research/
   replay.py        walk-forward over the real engine
   evaluate.py      cost stress, ordering band, folds -> verdict -> edge proof
   synthetic.py     deterministic fake data for the null test
-tests/             176 tests
+tests/             195 tests
 ```
 
 ## Licence

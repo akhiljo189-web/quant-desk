@@ -197,15 +197,20 @@ def cmd_run(args) -> int:
 
     from qd.engine import Engine
     from qd.providers.alpaca import AlpacaBroker
+    from qd.providers.finnhub import FinnhubEarnings
     from qd.providers.polygon import PolygonProvider
 
     try:
         market = PolygonProvider(s.providers)
         broker = AlpacaBroker(s)
+        # The PEAD trigger's data source. Without it the strategy has no
+        # trigger channel at all and would refuse every candidate, so this is
+        # a hard dependency rather than an optional enrichment.
+        earnings = FinnhubEarnings(s.providers)
     except Exception as exc:
         print(f"could not reach providers: {exc}")
-        print("set POLYGON_API_KEY, ALPACA_KEY_ID and ALPACA_SECRET_KEY "
-              "(see .env.example)")
+        print("set POLYGON_API_KEY, FINNHUB_API_KEY, ALPACA_KEY_ID and "
+              "ALPACA_SECRET_KEY (see .env.example)")
         return 1
 
     account = broker.account()
@@ -215,7 +220,7 @@ def cmd_run(args) -> int:
     journal = Journal(s.journal_path)
     providers = Providers(
         market=market, broker=broker, news=market,
-        earnings=None, options=market,
+        earnings=earnings, options=market,
     )
     engine = Engine(s, providers, portfolio, journal, LiveClock())
     engine.startup()

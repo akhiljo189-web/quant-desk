@@ -499,6 +499,8 @@ class ExecutionConfig:
 class ProviderConfig:
     polygon_api_key: str = ""
     polygon_base: str = "https://api.polygon.io"
+    finnhub_api_key: str = ""
+    finnhub_base: str = "https://finnhub.io/api/v1"
     alpaca_key_id: str = ""
     alpaca_secret: str = ""
     alpaca_paper_base: str = "https://paper-api.alpaca.markets"
@@ -570,6 +572,7 @@ class Settings:
             providers=replace(
                 ProviderConfig(),
                 polygon_api_key=_env("POLYGON_API_KEY"),
+                finnhub_api_key=_env("FINNHUB_API_KEY"),
                 alpaca_key_id=_env("ALPACA_KEY_ID"),
                 alpaca_secret=_env("ALPACA_SECRET_KEY"),
                 cache_dir=_env("QD_CACHE_DIR", ProviderConfig.cache_dir),

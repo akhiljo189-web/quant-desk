@@ -208,8 +208,12 @@ system from the one running.
 
 - **No websocket streaming.** Providers are poll-based. Fine at a 20-second
   cadence; wrong for anything latency-sensitive.
-- **No earnings provider implemented.** `EarningsSource` is defined and used
-  throughout, but no live adapter exists — Finnhub or FMP would slot in.
+- **Earnings provider is Finnhub only.** `qd/providers/finnhub.py` implements
+  `EarningsSource`. Its `scheduled_known_at` is an ASSUMPTION when backfilling
+  (Finnhub does not report when a company announced its date), fixed at 21 days
+  ahead — generous on purpose, since assuming we knew early makes the blackout
+  fire early, while assuming we learned late would let the backtest hold
+  through prints that live trading refuses.
 - **The sector map is static** (`UniverseConfig.sectors`), approximate, and
   will misclassify. A wrong-but-stable grouping still prevents eight
   semiconductor names loading as eight independent bets.

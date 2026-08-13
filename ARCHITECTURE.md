@@ -42,9 +42,25 @@ release.
 
 ```
 providers ──> features ──> Evidence ──> strategy ──> Intent ──> risk ──> Order ──> broker
-                                            │                    │
-                                            └────── journal ─────┘
+                              │             ▲          │                    │
+                              │         context        └────── journal ─────┘
+                              │        (layer 1,
+                              │         hard gate)
 ```
+
+**Layer 1 — context** (`qd/context.py`) classifies regime and volatility state
+from daily bars, using two crude measures with fixed thresholds, and gates
+everything downstream. It runs *before* any signal reasoning: checking it after
+conviction would let a strong signal in a regime the strategy was never
+measured in reach the sizing engine.
+
+Its thresholds are deliberately not exposed in config. A regime filter tuned
+against returns is a second strategy hiding inside the filter — with its own
+overfitting and its own need for proof — and when the system loses money you
+cannot tell which of the two failed.
+
+Regime derives from daily bars, so it can only change once a day; the engine
+caches it per symbol per trading day.
 
 `Evidence` is the common currency. Every channel — bars, headlines, earnings,
 options prints — reduces to `(source, kind, score ∈ [-1,1], confidence ∈ [0,1],
@@ -159,6 +175,17 @@ is not a standard.
 Deliberately absent from the generator: any mechanism making news predict
 returns. Adding one to "check the system finds signal" would be building a
 detector for a phenomenon inserted for the detector to find.
+
+---
+
+## The BarSeries invariant
+
+`BarSeries` de-duplicates by bar `end` against the whole series, not just the
+newest entry. The engine re-fetches an overlapping window every cycle, so a
+series that only checks the last bar accumulates a copy of its entire history
+on every pass. The consequences are not cosmetic: volume inflates (feeding RVOL
+directly), ATR corrupts, and every append becomes a full re-sort. Asserted in
+`tests/test_channels.py::BarSeriesTest`.
 
 ---
 

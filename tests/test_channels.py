@@ -377,6 +377,53 @@ class EarningsTest(unittest.TestCase):
 # Market
 # ─────────────────────────────────────────────────────────────────────────────
 
+class BarSeriesTest(unittest.TestCase):
+    """The engine re-fetches an overlapping window every cycle, so the series
+    must de-duplicate against its whole history — not just the newest bar."""
+
+    def _bars(self, n=5):
+        return [
+            Bar("X", NOW + timedelta(minutes=5 * i), NOW + timedelta(minutes=5 * (i + 1)),
+                100, 101, 99, 100, 1000)
+            for i in range(n)
+        ]
+
+    def test_refetching_history_does_not_duplicate(self):
+        s = mch.BarSeries("X")
+        for _ in range(3):
+            for b in self._bars():
+                s.append(b)
+        self.assertEqual(len(s), 5)
+        # Volume inflation is the damaging consequence: it feeds RVOL directly.
+        self.assertEqual(sum(b.volume for b in s), 5000)
+
+    def test_out_of_order_arrival_is_sorted(self):
+        s = mch.BarSeries("X")
+        for b in reversed(self._bars()):
+            s.append(b)
+        self.assertTrue(all(s[i].end < s[i + 1].end for i in range(len(s) - 1)))
+
+    def test_resent_bar_replaces_rather_than_stacks(self):
+        s = mch.BarSeries("X")
+        for b in self._bars():
+            s.append(b)
+        settled = Bar("X", NOW + timedelta(minutes=10), NOW + timedelta(minutes=15),
+                      100, 105, 95, 102, 7777)
+        s.append(settled)
+        self.assertEqual(len(s), 5)
+        self.assertEqual(s[2].volume, 7777)
+
+    def test_trim_keeps_the_index_consistent(self):
+        s = mch.BarSeries("X")
+        for b in self._bars(20):
+            s.append(b)
+        s.trim(5)
+        self.assertEqual(len(s), 5)
+        # Re-appending a kept bar must still replace, not duplicate.
+        s.append(s[-1])
+        self.assertEqual(len(s), 5)
+
+
 class MarketTest(unittest.TestCase):
     def test_atr_needs_enough_history(self):
         bars = [

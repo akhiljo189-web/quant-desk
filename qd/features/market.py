@@ -16,6 +16,7 @@ story the other channels are telling", which is a much weaker claim than
 
 from __future__ import annotations
 
+import bisect
 import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -30,13 +31,23 @@ from qd.types import Bar, Evidence, Source, ensure_utc, squash
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BarSeries:
-    """Time-ordered bars for one symbol, with point-in-time slicing."""
+    """Time-ordered bars for one symbol, with point-in-time slicing.
 
-    __slots__ = ("symbol", "_bars")
+    Bars are keyed by their `end` timestamp and de-duplicated against the WHOLE
+    series, not just the newest entry. The engine re-fetches an overlapping
+    window every cycle, so a series that only checks the last bar accumulates a
+    copy of its entire history every pass — which inflates volume (and
+    therefore RVOL), corrupts ATR, and turns each append into a full re-sort.
+    """
+
+    __slots__ = ("symbol", "_bars", "_index")
 
     def __init__(self, symbol: str, bars: Iterable[Bar] = ()) -> None:
         self.symbol = symbol.upper()
-        self._bars: list[Bar] = sorted(bars, key=lambda b: b.end)
+        self._bars: list[Bar] = []
+        self._index: dict[datetime, int] = {}
+        for b in sorted(bars, key=lambda b: b.end):
+            self.append(b)
 
     def __len__(self) -> int:
         return len(self._bars)
@@ -47,18 +58,23 @@ class BarSeries:
     def __getitem__(self, i):
         return self._bars[i]
 
+    def _reindex(self) -> None:
+        self._index = {b.end: i for i, b in enumerate(self._bars)}
+
     def append(self, bar: Bar) -> None:
-        """Append, keeping order. Duplicate bar ends replace rather than stack:
-        providers re-send the most recent bar as it finalises, and letting both
-        copies through double-counts its volume."""
-        if self._bars and bar.end == self._bars[-1].end:
-            self._bars[-1] = bar
+        """Insert or replace, keeping the series ordered by bar close."""
+        pos = self._index.get(bar.end)
+        if pos is not None:
+            # Same bar seen again — providers re-send the most recent bar as it
+            # finalises. Replace so the settled values win.
+            self._bars[pos] = bar
             return
         if self._bars and bar.end < self._bars[-1].end:
-            self._bars.append(bar)
-            self._bars.sort(key=lambda b: b.end)
+            bisect.insort(self._bars, bar, key=lambda b: b.end)
+            self._reindex()
             return
         self._bars.append(bar)
+        self._index[bar.end] = len(self._bars) - 1
 
     def visible_at(self, now: datetime) -> list[Bar]:
         """Bars that had closed at `now`. The point-in-time boundary."""
@@ -81,6 +97,7 @@ class BarSeries:
         """Bound memory in a long-running process."""
         if len(self._bars) > keep:
             self._bars = self._bars[-keep:]
+            self._reindex()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

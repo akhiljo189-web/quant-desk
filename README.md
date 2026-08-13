@@ -1,21 +1,43 @@
 # quant-desk
 
-An autonomous US equities trading system that combines four independent
-evidence channels — market structure, breaking news, earnings, and the options
-tape — under a strict risk envelope, and refuses to touch real money until
+An autonomous US equities trading system built around one testable hypothesis,
+under a strict risk envelope, that refuses to touch real money until
 walk-forward evidence says the signal works.
 
+## The hypothesis
+
+> Post-earnings announcement drift persists in **mid-cap US equities**
+> (roughly $2–20B, below top-tier sell-side coverage) because closing it
+> requires holding concentrated idiosyncratic risk through a high-volatility
+> window that capital-constrained arbitrageurs cannot take at size; the other
+> side is index and retail flow that reprices over days rather than seconds.
+
+It survives the only question that matters — *why hasn't this been arbitraged
+away?* — because it is **not a speed race**. The constraint keeping the anomaly
+alive is balance-sheet and mandate, not latency, and we compete on neither.
+
+Two of the four channels originally built here **fail** that question and have
+been demoted from signal to veto. The full analysis, including what would
+falsify the hypothesis, is in **[HYPOTHESIS.md](HYPOTHESIS.md)** — read that
+before the code.
+
 ```
-market data ─┐
-news ────────┤
-earnings ────┼──> Evidence ──> confluence ──> Intent ──> risk sizing ──> bracket order
-options tape ┘     (scored,      (>=2 agree)              (cash-risk        (broker-side
-                    dated,                                 first, caps       stop, atomic)
-                    attributed)                            only reduce)
+                 ┌── context ──┐  regime + volatility state, binary, rules-based
+                 │  (layer 1)  │  most strategies work in ONE regime
+                 └──────┬──────┘
+earnings ───────────────┤
+market structure ───────┼──> Evidence ──> confluence ──> Intent ──> risk ──> bracket order
+news (veto) ────────────┤     (scored,     (>=2 agree)            (cash-risk    (broker-side
+options flow (confirm) ─┘      dated,                              first, caps   stop, atomic)
+                               attributed)                         only reduce)
 ```
 
+Each layer is testable alone: feed `qd/context.py` bars and check the label; no
+evidence, positions or broker involved. That isolation is the point — when the
+system loses money you need to know *which* layer was wrong.
+
 **Status: paper trading only.** The live path exists and is blocked by
-`qd/gate.py` until an edge proof passes. No edge has been demonstrated yet —
+`qd/gate.py` until an edge proof passes. No edge has been demonstrated —
 see [Honest status](#honest-status).
 
 ---
@@ -73,7 +95,7 @@ engine over it. It should report **no trades** — synthetic data has no
 structure, so trading it would indicate a leak rather than a discovery.
 
 ```bash
-python3 -m unittest discover -s tests    # 134 tests
+python3 -m unittest discover -s tests    # 166 tests
 python3 -m qd.cli gate --live            # why live trading is blocked
 python3 -m qd.cli replay --symbols AAPL,MSFT --cost 2.0
 python3 -m qd.cli journal                # what it did, and what it declined
@@ -94,6 +116,20 @@ python3 -m qd.cli run       # paper by default
 Each reduces to `Evidence` — a directional score in [-1, 1], a confidence, an
 observation time, a TTL, and the raw numbers behind it. The strategy layer
 combines them without knowing anything about their origins.
+
+Their **roles differ**, and only one carries the hypothesis:
+
+| Channel | Role | Survives "why not arbitraged?" |
+|---|---|---|
+| Earnings (PEAD) | **signal** | weakly — limits to arbitrage, not speed |
+| Market structure | filter | never claimed to be an edge |
+| Options flow | confirmation | mostly no — dealer hedging is instant |
+| News | veto only | no — sub-millisecond machine-readable feeds |
+
+The news and flow modules are kept because their *filters* are the valuable
+part (straddle detection, opening-vs-closing, quote-relative aggressor), and
+because knowing a guidance cut landed 40 minutes ago is a good reason not to be
+long into the drift — a use that does not require winning a latency race.
 
 ### Market structure — `qd/features/market.py`
 Trend alignment (EMA separation in ATR units), participation (relative volume
@@ -176,24 +212,33 @@ risk, never to sit on it.
 
 ## Honest status
 
-- The **infrastructure** is built and tested: 134 tests, including explicit
+- The **infrastructure** is built and tested: 166 tests, including explicit
   look-ahead guards and a null test proving the evaluator reports NO EDGE on
   random data.
-- **No edge has been demonstrated.** The scoring weights and priors in
-  `qd/config.py` and `qd/features/news.py` are asserted from ordinary market
-  knowledge, not fitted. They are round numbers on purpose — anything tuned
-  until it looked good would be a curve fit.
+- **No edge has been demonstrated**, and the hypothesis above is expected to
+  fail. PEAD has decayed for forty years and is taught in every quant
+  curriculum; the realistic outcome is "positive gross, zero-to-negative net of
+  costs". That is stated up front so a marginal result reads as the coin-flip
+  it is rather than as vindication.
+- **The configured universe is wrong for the hypothesis.** The 24 mega-caps in
+  `UniverseConfig` are the most efficiently priced equities in the world —
+  exactly where drift is closest to zero. This is an unresolved tension, not an
+  oversight: the liquidity filter that makes trading safe screens out the names
+  where the inefficiency lives. See the table in HYPOTHESIS.md.
+- Priors in `qd/config.py` and `qd/features/news.py` are **asserted, not
+  fitted** — round numbers on purpose.
 - The system currently runs on **synthetic data**, where it correctly does
-  nothing. Whether it does anything useful on real data is unknown and requires
-  a Polygon subscription and months of paper trading to find out.
-- `research/evaluate.py` will happily return **NO EDGE**, and that is a
-  successful run. A research tool that cannot return a negative verdict is not
-  measuring anything.
+  nothing.
 
-Things that would change the picture, roughly in order of value: calibrating
-the news priors against realised forward returns; measuring whether the options
-flow channel leads price at all on real data; and checking whether the
-confluence requirement is filtering noise or just filtering.
+The falsification test worth running first: drift should be *monotonically
+weaker* with market cap and analyst coverage. If mega-caps show equal or
+stronger drift than mid-caps, the hypothesis is wrong and any positive result
+is an artefact — because the whole persistence argument rests on coverage being
+the binding constraint. That is a prediction about the **structure** of the
+result, and it is worth more than the headline expectancy number.
+
+The failure mode to watch: finding a small positive expectancy, deciding the
+cost model is "too conservative", and relaxing it.
 
 ---
 
@@ -204,6 +249,7 @@ qd/
   types.py         records, the two-timestamp rule, Evidence
   clock.py         NYSE calendar (holidays by rule), session phases, sim clock
   config.py        every tunable, loaded from env once
+  context.py       LAYER 1: regime + volatility state, testable alone
   features/        the four channels
   strategy.py      confluence -> Intent
   risk.py          sizing and the caps
@@ -216,7 +262,7 @@ research/
   replay.py        walk-forward over the real engine
   evaluate.py      cost stress, ordering band, folds -> verdict -> edge proof
   synthetic.py     deterministic fake data for the null test
-tests/             134 tests
+tests/             166 tests
 ```
 
 ## Licence

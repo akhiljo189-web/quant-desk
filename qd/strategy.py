@@ -39,7 +39,8 @@ from datetime import datetime, timedelta
 from typing import Mapping, Optional, Sequence
 
 from qd.clock import CALENDAR, MarketCalendar, Phase
-from qd.config import RiskConfig, StrategyConfig
+from qd.config import ContextConfig, RiskConfig, StrategyConfig
+from qd.context import MarketContext, Regime
 from qd.features.market import MarketSnapshot
 from qd.types import (
     Evidence, Intent, Side, Source, clamp, ensure_utc,
@@ -59,6 +60,7 @@ class Assessment:
     opposing_weight: float
     live_evidence: tuple[Evidence, ...]
     blocked: str = ""              # empty means it passed every gate
+    context: Optional[MarketContext] = None
 
     @property
     def would_trade(self) -> bool:
@@ -111,6 +113,8 @@ def assess(
     now: datetime,
     cfg: StrategyConfig,
     cal: MarketCalendar = CALENDAR,
+    context: Optional[MarketContext] = None,
+    context_cfg: Optional[ContextConfig] = None,
 ) -> Assessment:
     """Score a symbol and decide whether it clears every gate."""
     now = ensure_utc(now)
@@ -147,7 +151,8 @@ def assess(
     conviction = clamp(abs(net) - opposing * cfg.conflict_penalty, 0.0, 1.0)
 
     blocked = _gate(
-        symbol, direction, conviction, agreeing, opposing, snap, now, cfg, cal
+        symbol, direction, conviction, agreeing, opposing, snap, now, cfg, cal,
+        context, context_cfg,
     )
 
     return Assessment(
@@ -161,6 +166,7 @@ def assess(
         opposing_weight=opposing,
         live_evidence=live,
         blocked=blocked,
+        context=context,
     )
 
 
@@ -174,12 +180,32 @@ def _gate(
     now: datetime,
     cfg: StrategyConfig,
     cal: MarketCalendar,
+    context: Optional[MarketContext] = None,
+    context_cfg: Optional[ContextConfig] = None,
 ) -> str:
     """Every reason not to trade, checked in order. Empty string = clear."""
     if direction is None:
         return "no directional signal"
     if not snap.has_core:
         return "no ATR — cannot place a stop"
+
+    # Regime first, before any signal reasoning. The context layer is a
+    # precondition on the strategy being applicable at all — checking it after
+    # conviction would let a strong signal in a regime the strategy was never
+    # measured in reach the sizing engine.
+    if context_cfg is not None and context_cfg.enabled:
+        if context is None:
+            if context_cfg.require_known_regime:
+                return "regime not classified"
+        else:
+            allowed = tuple(Regime(r) for r in context_cfg.allowed_regimes)
+            market_allowed = (
+                tuple(Regime(r) for r in context_cfg.allowed_market_regimes)
+                if context_cfg.allowed_market_regimes is not None else None
+            )
+            ok, why = context.permits(allowed, market_allowed)
+            if not ok:
+                return f"context: {why}"
 
     phase = cal.phase(now)
     if phase is Phase.CLOSED:

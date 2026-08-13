@@ -69,9 +69,14 @@ def cmd_selftest(args) -> int:
     s = dataclasses.replace(
         s, universe=dataclasses.replace(s.universe, symbols=("AAPL", "MSFT"))
     )
+    # Generate a long history but replay only the tail. The regime layer needs
+    # 60+ closed daily bars before it will classify anything, so a dataset that
+    # starts when the replay starts leaves every symbol permanently UNKNOWN and
+    # the context gate masks every other refusal. This mirrors real operation:
+    # months of daily history behind a short decision window.
     ds = generate(SyntheticSpec(
-        symbols=("AAPL", "MSFT"), start=date(2026, 3, 2), end=date(2026, 3, 20),
-        seed=5, earnings_every_days=10,
+        symbols=("AAPL", "MSFT", "SPY"), start=date(2025, 9, 1), end=date(2026, 3, 20),
+        seed=5, earnings_every_days=45,
     ))
     print(f"  dataset: {ds.summary()}")
     r = replay.run(

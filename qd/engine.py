@@ -36,6 +36,7 @@ from typing import Optional, Sequence
 
 from qd.clock import CALENDAR, Clock, LiveClock, MarketCalendar, Phase
 from qd.config import Mode, Settings
+from qd.context import ContextState, MarketContext, Regime, classify as classify_regime
 from qd.features import earnings as earnings_ch
 from qd.features import market as market_ch
 from qd.features import news as news_ch
@@ -124,6 +125,15 @@ class Engine:
         self._earnings_fetched: Optional[datetime] = None
         self._news_cursor: Optional[datetime] = None
 
+        # Index bars for the market-wide regime read, kept separately from the
+        # tradeable universe — SPY is context, never a candidate.
+        self._market_bars = BarSeries(settings.context.market_symbol)
+        self._market_context: Optional[ContextState] = None
+        # Regime is derived from DAILY bars, so it can only change when one
+        # closes. Caching per trading day turns a per-cycle recomputation over
+        # a year of history into one per symbol per day.
+        self._context_cache: dict[tuple[str, str], ContextState] = {}
+
     # ── data ─────────────────────────────────────────────────────────────────
 
     def refresh_market(self, symbol: str, now: datetime) -> None:
@@ -149,6 +159,47 @@ class Engine:
             symbol, st.intraday, st.daily, now, self.s.market, self.cal
         )
         st.last_refresh = now
+
+    def _classify_cached(
+        self, symbol: str, bars, now: datetime
+    ) -> ContextState:
+        """Classify once per symbol per trading day."""
+        key = (symbol.upper(), self.cal.trading_day_key(now))
+        hit = self._context_cache.get(key)
+        if hit is not None:
+            return hit
+        state = classify_regime(symbol, bars, now)
+        # Bound the cache: two entries per symbol is ample, and an unbounded
+        # dict in a process that runs for months is a slow leak.
+        if len(self._context_cache) > len(self.states) * 4 + 8:
+            self._context_cache.clear()
+        self._context_cache[key] = state
+        return state
+
+    def refresh_context(self, now: datetime) -> None:
+        """Refresh index bars and classify the market-wide regime."""
+        if not self.s.context.enabled:
+            return
+        sym = self.s.context.market_symbol
+        try:
+            for b in self.p.market.daily_bars(sym, now - timedelta(days=500), now):
+                self._market_bars.append(b)
+        except Exception as exc:
+            logger.warning("%s: context refresh failed: %s", sym, exc)
+            return
+        self._market_context = self._classify_cached(sym, list(self._market_bars), now)
+
+    def context_for(self, symbol: str, now: datetime) -> Optional[MarketContext]:
+        if not self.s.context.enabled:
+            return None
+        st = self.states.get(symbol)
+        if st is None:
+            return None
+        symbol_ctx = self._classify_cached(symbol, list(st.daily), now)
+        market_ctx = self._market_context or self._classify_cached(
+            self.s.context.market_symbol, list(self._market_bars), now
+        )
+        return MarketContext(market=market_ctx, symbol=symbol_ctx)
 
     def refresh_news(self, now: datetime) -> None:
         if self.p.news is None:
@@ -357,7 +408,8 @@ class Engine:
             return
 
         a = assess(
-            symbol, st.live_evidence(now), st.snapshot, now, self.s.strategy, self.cal
+            symbol, st.live_evidence(now), st.snapshot, now, self.s.strategy,
+            self.cal, self.context_for(symbol, now), self.s.context,
         )
         report.assessed += 1
 
@@ -435,6 +487,7 @@ class Engine:
 
         for sym in self.states:
             self.refresh_market(sym, now)
+        self.refresh_context(now)
         self.refresh_earnings(now)
         self.refresh_news(now)
         for sym in self.states:

@@ -291,6 +291,32 @@ class OptionsFlowConfig:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
+class ContextConfig:
+    """Which regimes the strategy is allowed to trade in.
+
+    Declared, not discovered. A strategy that trades every regime is claiming
+    to work in all of them, which is a claim almost nothing survives — and one
+    that a blended backtest average will happily appear to support.
+
+    The measurement thresholds live in qd/context.py and are deliberately not
+    exposed here: a regime filter tuned against returns is a second strategy
+    hiding inside the filter, and when the system loses money you cannot tell
+    which of the two failed.
+    """
+    enabled: bool = True
+    # PEAD is an event-driven drift, not a trend-following signal. It is
+    # allowed in chop because the drift does not require the broader tape to
+    # trend — it requires the market to reprice one name slowly.
+    allowed_regimes: tuple = ("trend_up", "trend_down", "chop")
+    # The index is a different matter: a long single-name position in a
+    # market-wide downtrend is fighting the factor that explains most of its
+    # return.
+    allowed_market_regimes: Optional[tuple] = ("trend_up", "chop")
+    market_symbol: str = "SPY"
+    require_known_regime: bool = True
+
+
+@dataclass(frozen=True)
 class StrategyConfig:
     """How the four channels combine into a decision.
 
@@ -401,6 +427,7 @@ class Settings:
     mode: Mode = Mode.PAPER
     risk: RiskConfig = field(default_factory=RiskConfig)
     universe: UniverseConfig = field(default_factory=UniverseConfig)
+    context: ContextConfig = field(default_factory=ContextConfig)
     market: MarketConfig = field(default_factory=MarketConfig)
     news: NewsConfig = field(default_factory=NewsConfig)
     earnings: EarningsConfig = field(default_factory=EarningsConfig)
@@ -468,7 +495,7 @@ class Settings:
 
 
 __all__ = [
-    "Mode", "Settings", "RiskConfig", "UniverseConfig", "MarketConfig",
-    "NewsConfig", "EarningsConfig", "OptionsFlowConfig", "StrategyConfig",
-    "ExecutionConfig", "ProviderConfig",
+    "Mode", "Settings", "RiskConfig", "UniverseConfig", "ContextConfig",
+    "MarketConfig", "NewsConfig", "EarningsConfig", "OptionsFlowConfig",
+    "StrategyConfig", "ExecutionConfig", "ProviderConfig",
 ]

@@ -296,12 +296,25 @@ class Engine:
         if self.cal.phase(now) is not Phase.REGULAR:
             return None
 
+        # The feed's own known delay is added to the tolerance rather than
+        # baked into a hand-widened threshold. On a 15-minute delayed tier the
+        # newest bar is ALWAYS ~15 minutes old, which a naive check reads as a
+        # dead feed — halting every entry permanently, silently, and in a way
+        # indistinguishable from a signal that simply never fires. Adding the
+        # delay keeps the watchdog's sensitivity intact: it still catches a
+        # feed that has genuinely stopped, just max_bar_age after it stops
+        # rather than immediately.
+        tolerance = self.s.risk.max_bar_age + self.s.providers.feed_delay
+
         # Just after the open no bar has closed yet, so the newest one is
         # yesterday's and legitimately hours old. Flagging that as a broken
         # feed would fire an alarm at 09:30 every single day, and an alarm that
         # cries wolf daily is one nobody reads on the morning it is real.
         since_open = self.cal.minutes_since_open(now)
-        if since_open is not None and since_open < self.s.market.bar_minutes + 1:
+        grace = self.s.market.bar_minutes + 1 + (
+            self.s.providers.feed_delay.total_seconds() / 60.0
+        )
+        if since_open is not None and since_open < grace:
             return None
 
         ages: list[tuple[str, timedelta]] = []
@@ -314,12 +327,13 @@ class Engine:
         if not ages:
             return "no market data at all"
         worst_sym, worst = max(ages, key=lambda kv: kv[1])
-        if worst > self.s.risk.max_bar_age:
-            fresh = sum(1 for _, a in ages if a <= self.s.risk.max_bar_age)
+        if worst > tolerance:
+            fresh = sum(1 for _, a in ages if a <= tolerance)
             if fresh == 0:
                 return (
                     f"every symbol stale (worst {worst_sym} "
-                    f"{worst.total_seconds():.0f}s)"
+                    f"{worst.total_seconds():.0f}s > "
+                    f"{tolerance.total_seconds():.0f}s tolerance)"
                 )
         return None
 

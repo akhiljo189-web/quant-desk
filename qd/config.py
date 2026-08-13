@@ -505,6 +505,20 @@ class ProviderConfig:
     alpaca_secret: str = ""
     alpaca_paper_base: str = "https://paper-api.alpaca.markets"
     alpaca_live_base: str = "https://api.alpaca.markets"
+    # How far behind live the market-data feed is KNOWN to be. Delayed tiers
+    # (typically 15 minutes) are entirely adequate here — PEAD is a multi-day
+    # drift, and the hypothesis survives the arbitrage question precisely
+    # because it is not a speed race, so paying for real-time buys nothing.
+    #
+    # But the staleness watchdog must be told, or it treats the vendor's normal
+    # delay as a broken feed and halts every entry forever. The failure is
+    # silent and expensive: paper trading would place ZERO trades while looking
+    # exactly like a strategy whose signal never fires, and the cause would not
+    # surface for weeks. The watchdog adds this to its threshold rather than
+    # having the threshold widened by hand, so it still detects a feed that has
+    # genuinely stopped — just `max_bar_age` later than it otherwise would.
+    feed_delay: timedelta = timedelta(minutes=15)
+
     request_timeout: float = 10.0
     max_retries: int = 3
     rate_limit_per_min: int = 100

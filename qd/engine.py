@@ -360,10 +360,24 @@ class Engine:
                     )
                     report.exits += 1
 
-            # Time stop. A trade that has gone nowhere is occupying a slot and
-            # a share of the risk budget while the thesis that opened it has
-            # quietly expired.
-            if held > cfg.max_hold and abs(r) < cfg.time_stop_r_threshold:
+            # Drift-window exit, unconditional. The hypothesis is that the
+            # earnings event causes a drift with a lifespan; past that window
+            # the position is no longer held because of the event, and keeping
+            # it is an unregistered momentum bet wearing the hypothesis's
+            # clothes. Winners are closed here too — that is the point.
+            if held >= cfg.max_hold:
+                self.p.broker.close_position(pos.symbol)
+                trade = self.portfolio.close(pos.symbol, mark, now, "drift_window_over")
+                if trade:
+                    self.journal.exit(trade)
+                report.exits += 1
+                continue
+
+            # Early cut. A trade flat by day three has spent most of its drift
+            # window not drifting — the thesis is failing in the one interval
+            # where it was supposed to work, and the slot and risk budget are
+            # worth more than the residual hope.
+            if held >= cfg.time_stop and abs(r) < cfg.time_stop_r_threshold:
                 self.p.broker.close_position(pos.symbol)
                 trade = self.portfolio.close(pos.symbol, mark, now, "time_stop")
                 if trade:

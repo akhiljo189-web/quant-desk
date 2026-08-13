@@ -1,30 +1,37 @@
 """
-qd.strategy — combining four channels into one decision.
+qd.strategy — the PEAD trigger, confirmed and vetoed.
 
-The rule that does the work is CONFLUENCE: independent channels must agree
-before anything trades.
+The channels are NOT peers. HYPOTHESIS.md registered one edge — post-earnings
+drift — and demoted the channels that failed the "why hasn't this been
+arbitraged away" test. This module is where that demotion is enforced in code
+rather than left as documentation:
 
-The reasoning is about error, not about strength. Each channel fails in its own
-characteristic way — a busted print inflates volume, an aggregator repeats a
-headline, a mislabelled spread leg reads as a directional sweep, a stale
-consensus estimate manufactures a surprise. Those failures are largely
-uncorrelated. A single channel screaming is therefore much more likely to be
-that channel breaking than to be a real opportunity, whereas two channels
-breaking in the same direction within the same minutes is rare.
+    TRIGGER   earnings drift. Required, and it alone sets the direction.
+              No PEAD evidence means no trade, whatever else is happening.
+    CONFIRM   market structure and options flow. They scale conviction up to
+              the trigger's own strength — never beyond it, and never into
+              existence. An opposing confirmation is penalised harder than an
+              agreeing one helps (conflict_penalty), and enough opposition
+              blocks outright.
+    VETO      news. Only its opposing reading is consulted; an agreeing
+              headline is discarded unread. At a 20-second polling latency the
+              news channel cannot originate alpha, but "a guidance cut printed
+              an hour ago" is still an excellent reason not to be long.
 
-This costs trades. Most genuine opportunities never get a second confirming
-channel, and the system will sit through them. That is the intended trade —
-lower frequency for a much lower rate of acting on artefacts.
+Why the asymmetry matters: a symmetric weighted blend — which is what this
+module used to be — lets the two demoted channels outvote the one carrying the
+hypothesis. At that point the system trades things nobody registered, and its
+backtest, whatever it shows, is evidence about the wrong strategy.
 
-Aggregation happens in two stages, and the order matters:
+Confluence still applies on top (trigger + at least one confirmation). Each
+channel fails in its own characteristic way — a busted print, a repeated
+headline, a stale consensus estimate manufacturing a surprise — and those
+failures are largely uncorrelated, so requiring agreement filters artefacts.
+This costs trades, deliberately.
 
-    within a source   the readings are averaged, not summed
-    across sources    the per-source scores are weighted and summed
-
-Summing within a source would let the market channel — which emits four
-readings — outvote news, which emits one. That is a counting artefact, not a
-finding. Averaging first makes each channel one vote whose strength is its own
-internal agreement.
+Within a source, readings are combined as a confidence-weighted MEAN, not a
+sum: a channel that emits four weak readings must not outrank one that emits a
+single strong one.
 
 Assess() always returns its full reasoning, including for symbols that do not
 trade. The near-misses are the more useful record: they show what the system
@@ -52,12 +59,13 @@ class Assessment:
     """The full reasoning behind a decision, including a refusal."""
     symbol: str
     now: datetime
-    net_score: float
+    trigger_score: float           # the PEAD reading; sign IS the direction
     conviction: float
     direction: Optional[Side]
     per_source: Mapping[Source, float]
-    agreeing_sources: int
-    opposing_weight: float
+    agreeing_sources: int          # trigger + confirmations that agree
+    opposing_weight: float         # weight of confirmations arguing the other way
+    veto_score: float              # strongest opposing veto-source reading
     live_evidence: tuple[Evidence, ...]
     blocked: str = ""              # empty means it passed every gate
     context: Optional[MarketContext] = None
@@ -73,9 +81,11 @@ class Assessment:
             )
         ]
         head = (
-            f"{self.symbol} net={self.net_score:+.3f} conv={self.conviction:.3f} "
+            f"{self.symbol} trigger={self.trigger_score:+.3f} "
+            f"conv={self.conviction:.3f} "
             f"dir={self.direction.value if self.direction else '-'} "
-            f"agree={self.agreeing_sources} opp={self.opposing_weight:.3f}"
+            f"agree={self.agreeing_sources} opp={self.opposing_weight:.3f} "
+            f"veto={self.veto_score:+.3f}"
         )
         tail = f" BLOCKED: {self.blocked}" if self.blocked else ""
         return f"{head} [{' '.join(parts)}]{tail}"
@@ -121,49 +131,71 @@ def assess(
     live = tuple(e for e in evidence if e.is_live(now) and e.symbol == symbol.upper())
     per_source = aggregate(live, now, cfg)
 
-    # Weighted combination across channels.
-    total_w = sum(cfg.weights.get(s, 0.0) for s in per_source) or 1.0
-    net = sum(score * cfg.weights.get(src, 0.0) for src, score in per_source.items()) / total_w
-    net = clamp(net)
+    # ── The trigger decides the direction ────────────────────────────────────
+    # PEAD is the hypothesis; the drift's sign is the trade's sign. Nothing
+    # else — however loud — is allowed to originate a position, because the
+    # other channels failed the "why hasn't this been arbitraged away" test
+    # (HYPOTHESIS.md) and are structurally demoted to confirming or blocking.
+    trigger = sum(per_source.get(src, 0.0) for src in cfg.trigger_sources)
+    trigger = clamp(trigger)
+    direction = (
+        Side.BUY if trigger >= cfg.min_trigger_score
+        else Side.SELL if trigger <= -cfg.min_trigger_score
+        else None
+    )
 
-    direction = Side.BUY if net > 0 else Side.SELL if net < 0 else None
-
-    # How much weight argues each way.
+    # ── Confirmations scale conviction; they never create it ─────────────────
+    # support is bounded so that full agreement lifts conviction to the
+    # trigger's own strength and no further: a stack of enthusiastic
+    # confirmations must not make a weak drift reading look like a strong one.
     agreeing = 0
     opposing = 0.0
+    support = 0.0
+    veto_score = 0.0
     if direction is not None:
         want = 1 if direction is Side.BUY else -1
-        for src, score in per_source.items():
-            if score == 0:
-                continue
-            contribution = abs(score) * cfg.weights.get(src, 0.0) / total_w
+        agreeing = 1                       # the trigger itself
+        for src in cfg.confirm_sources:
+            score = per_source.get(src, 0.0)
+            if abs(score) < 0.10:
+                continue                   # a shrug is not a confirmation
+            w = cfg.weights.get(src, 0.0)
             if (score > 0) == (want > 0):
-                # Only count a channel as agreeing if it says something. A
-                # score of 0.02 is not a confirmation, it is a shrug.
-                if abs(score) >= 0.10:
-                    agreeing += 1
+                agreeing += 1
+                support += abs(score) * w
             else:
-                opposing += contribution
+                opposing += abs(score) * w
 
-    # Disagreement is penalised harder than agreement is rewarded. When
-    # channels conflict the honest reading is that the picture is unclear, and
-    # unclear is a reason to stand aside rather than to trade smaller.
-    conviction = clamp(abs(net) - opposing * cfg.conflict_penalty, 0.0, 1.0)
+        # Veto sources: only their OPPOSING reading matters. An agreeing
+        # headline is discarded unread — the news channel cannot add conviction
+        # at our latency, only warn.
+        for src in cfg.veto_sources:
+            score = per_source.get(src, 0.0)
+            if (score > 0) != (want > 0) and abs(score) > abs(veto_score):
+                veto_score = score
+
+    conviction = 0.0
+    if direction is not None:
+        base = abs(trigger)
+        # 0.6 with no support, up to 1.0x the trigger with full support.
+        conviction = base * (0.6 + 0.4 * min(1.0, support))
+        conviction = clamp(conviction - opposing * cfg.conflict_penalty, 0.0, 1.0)
 
     blocked = _gate(
-        symbol, direction, conviction, agreeing, opposing, snap, now, cfg, cal,
-        context, context_cfg,
+        symbol, direction, trigger, conviction, agreeing, opposing, veto_score,
+        snap, now, cfg, cal, context, context_cfg,
     )
 
     return Assessment(
         symbol=symbol.upper(),
         now=now,
-        net_score=net,
+        trigger_score=trigger,
         conviction=conviction,
         direction=direction,
         per_source=per_source,
         agreeing_sources=agreeing,
         opposing_weight=opposing,
+        veto_score=veto_score,
         live_evidence=live,
         blocked=blocked,
         context=context,
@@ -173,9 +205,11 @@ def assess(
 def _gate(
     symbol: str,
     direction: Optional[Side],
+    trigger: float,
     conviction: float,
     agreeing: int,
     opposing: float,
+    veto_score: float,
     snap: MarketSnapshot,
     now: datetime,
     cfg: StrategyConfig,
@@ -185,7 +219,10 @@ def _gate(
 ) -> str:
     """Every reason not to trade, checked in order. Empty string = clear."""
     if direction is None:
-        return "no directional signal"
+        if abs(trigger) > 0:
+            return (f"trigger {trigger:+.3f} below floor "
+                    f"{cfg.min_trigger_score} — drift reading is a shrug")
+        return "no PEAD trigger — the hypothesis requires earnings evidence"
     if not snap.has_core:
         return "no ATR — cannot place a stop"
 
@@ -225,10 +262,17 @@ def _gate(
             # so it becomes an unplanned overnight hold.
             return f"within {cfg.no_entry_last_minutes:.0f}min of the close"
 
+    # News veto: an opposing headline reading at or above threshold blocks. It
+    # is checked before confluence so the journal records "vetoed" rather than
+    # a generic confluence failure — the difference matters when auditing why
+    # the system stood aside on a day the drift worked.
+    if abs(veto_score) >= cfg.veto_threshold:
+        return f"news veto: opposing reading {veto_score:+.3f}"
     if agreeing < cfg.min_sources:
-        return f"confluence: {agreeing} agreeing source(s), need {cfg.min_sources}"
+        return (f"confluence: trigger + {agreeing - 1} confirmation(s), "
+                f"need {cfg.min_sources} total")
     if opposing > cfg.veto_on_conflict_above:
-        return f"conflicting evidence ({opposing:.2f} opposing weight)"
+        return f"conflicting confirmations ({opposing:.2f} opposing weight)"
     if conviction < cfg.min_conviction:
         return f"conviction {conviction:.3f} below {cfg.min_conviction}"
     return ""

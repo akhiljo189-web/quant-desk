@@ -216,12 +216,15 @@ class StrategyIntegrationTest(unittest.TestCase):
             prev_close=100.0, session_high=101.0, session_low=99.0,
             adv_dollar=500_000_000.0, bar_count=120, last_bar_end=self.now,
         )
+        # Trigger + confirmation, per the role model: earnings evidence is
+        # required, so the fixture must carry it or every test here would be
+        # blocked by "no PEAD trigger" before the context gate is reached.
         self.evidence = [
-            Evidence(source=Source.NEWS, kind="guidance_raise", symbol="NVDA",
-                     score=0.85, confidence=0.9, observed_at=self.now,
-                     ttl=timedelta(hours=1)),
+            Evidence(source=Source.EARNINGS, kind="pead", symbol="NVDA",
+                     score=0.8, confidence=0.9, observed_at=self.now,
+                     ttl=timedelta(hours=6)),
             Evidence(source=Source.OPTIONS_FLOW, kind="premium_imbalance",
-                     symbol="NVDA", score=0.8, confidence=0.9,
+                     symbol="NVDA", score=0.7, confidence=0.9,
                      observed_at=self.now, ttl=timedelta(hours=1)),
         ]
 

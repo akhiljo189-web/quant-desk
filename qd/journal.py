@@ -74,11 +74,12 @@ class Journal:
         self.write(
             "assessment",
             symbol=a.symbol,
-            net_score=round(a.net_score, 4),
+            trigger_score=round(a.trigger_score, 4),
             conviction=round(a.conviction, 4),
             direction=a.direction.value if a.direction else None,
             agreeing=a.agreeing_sources,
             opposing=round(a.opposing_weight, 4),
+            veto_score=round(a.veto_score, 4),
             per_source={s.value: round(v, 4) for s, v in a.per_source.items()},
             evidence=[
                 {

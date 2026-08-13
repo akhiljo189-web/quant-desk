@@ -107,11 +107,20 @@ that lands.
 
 - **Earnings blackout**: no entries within 24h of a scheduled report, and no
   holding through one. The distribution is bimodal and the stop does not exist
-  across the gap — this is a coin flip at the size of a considered trade.
-- **Overnight cap**: at most 4 positions held out, highest-risk flattened
-  first.
+  across the gap — this is a coin flip at the size of a considered trade. The
+  strategy enters *after* a release; the blackout guards the **next** one,
+  which is a different event, not ours.
+- **Overnight holding is the strategy.** PEAD is a multi-day drift, and
+  overnight gap exposure is precisely the risk the hypothesis says the market
+  pays for carrying. The overnight cap therefore matches the position cap
+  (8) instead of force-flattening the book nightly — the binding constraint on
+  gap damage is the 2% total-open-risk ceiling, which caps what a correlated
+  gap-down costs regardless of how many names are held.
 - **Post-release settling**: no entries for 30 minutes after a print, while the
   spread is enormous and the first prints are unreliable.
+- **Drift-window exit**: every position is closed unconditionally 8 days after
+  entry, winners included. Past the window the position is no longer held
+  because of the event, and an open-ended hold is an unregistered momentum bet.
 
 The simulator models this: a gap through the stop fills at the open, not the
 stop price (`test_gap_through_the_stop_fills_at_the_open_not_the_stop`).

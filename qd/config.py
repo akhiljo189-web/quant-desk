@@ -115,8 +115,17 @@ class RiskConfig:
     # Overnight risk. Gaps ignore stops entirely — a stop is an order resting
     # against a market that is not trading, and it fills at the open print,
     # wherever that lands. Holding through earnings is the extreme case.
+    #
+    # A PEAD book holds overnight BY DESIGN — the drift is a multi-day effect,
+    # and overnight gap exposure is precisely the risk the hypothesis says the
+    # market pays you to carry. So the overnight cap matches the position cap
+    # rather than fighting the strategy; the binding constraint on gap damage
+    # is the total-open-risk ceiling below (2% across the book), not a nightly
+    # forced flattening that would amputate every drift at the first close.
+    # flatten_before_earnings stays absolute: the NEXT scheduled print is a
+    # different event, not our event.
     allow_overnight: bool = True
-    max_overnight_positions: int = 4
+    max_overnight_positions: int = 8
     flatten_before_earnings: bool = True
 
     # Pattern Day Trader rule: under $25k equity, a US margin account gets 3 day
@@ -142,26 +151,74 @@ class RiskConfig:
 class UniverseConfig:
     """What is allowed to be traded at all.
 
-    Liquidity filters do more work than any signal. Illiquid names show the
-    prettiest backtests — huge percentage moves, apparently clean trends — and
-    are untradeable at size, because the spread and impact eat the whole edge.
+    The universe is MID-CAP by hypothesis, not by taste. PEAD concentrates
+    where analyst coverage is thin and repricing is slow; the previous default
+    — 24 mega-caps, the most efficiently priced names on earth — was the one
+    universe where the registered hypothesis predicts nothing. Testing there
+    would disconfirm by construction (HYPOTHESIS.md, "the tension").
+
+    ⚠ The list below is a STATIC SNAPSHOT of liquid US mid-caps (~$2–20B) as of
+    this commit, and it decays: caps drift across the band, names get acquired,
+    and a hand-maintained list quietly accumulates survivorship. Before any
+    real run — and periodically after — regenerate it from a screener (market
+    cap $2–20B, ADV > $10M, optionable, primary US listing) rather than
+    editing it by feel. The structural commitment is the BAND, not the names.
+
+    Liquidity filters still do more work than any signal. Illiquid names show
+    the prettiest backtests — huge percentage moves, apparently clean trends —
+    and are untradeable at size, because spread and impact eat the whole edge.
+    The floors are lower than the mega-cap ones deliberately: this is the
+    documented trade of safety against edge, made explicit rather than
+    inherited.
     """
     symbols: tuple[str, ...] = (
-        "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AMD",
-        "AVGO", "NFLX", "CRM", "ORCL", "QCOM", "MU", "INTC", "PLTR",
-        "JPM", "BAC", "XOM", "CVX", "UNH", "LLY", "COST", "WMT",
+        # software / internet
+        "GTLB", "BILL", "PCTY", "CFLT", "U", "PATH",
+        # semis / hardware
+        "LSCC", "SLAB", "RMBS", "ALGM",
+        # consumer discretionary
+        "CROX", "ELF", "CELH", "WING", "TXRH", "FIVE", "RH", "BOOT",
+        # healthcare / biotech
+        "EXEL", "HALO", "LNTH", "INSP",
+        # industrials
+        "OSK", "THO", "MIDD", "AIT", "SAIA",
+        # energy
+        "CHRD", "MTDR", "PR",
+        # financials
+        "KNSL", "PIPR", "JXN",
+        # staples-ish retail
+        "BJ", "CASY",
     )
     min_price: float = 5.00          # sub-$5 is a different market with different rules
     max_price: float = 2_000.00
-    min_avg_dollar_volume: float = 20_000_000.0   # 20-day ADV in dollars
-    max_spread_bps: float = 15.0     # at decision time, not on average
+    # Mid-cap floor: high enough that a 0.5%-risk position exits in minutes,
+    # low enough not to screen out the thin-coverage names the drift lives in.
+    min_avg_dollar_volume: float = 10_000_000.0   # 20-day ADV in dollars
+    max_spread_bps: float = 25.0     # mid-caps trade wider; still hard-capped
     min_atr_pct: float = 0.8         # too quiet: the target is inside the noise
     max_atr_pct: float = 12.0        # too wild: stops are unaffordably wide
 
     # Rough sector map for correlation caps. Static and approximate on purpose:
-    # a wrong-but-stable grouping still stops eight semiconductor names being
-    # loaded as if they were eight independent bets.
+    # a wrong-but-stable grouping still stops eight names in one industry being
+    # loaded as if they were eight independent bets. The map may contain names
+    # outside the active universe (e.g. the retired mega-cap list) — that is
+    # harmless, and keeps sector lookups stable across universe changes.
     sectors: Mapping[str, str] = field(default_factory=lambda: {
+        # active mid-cap universe
+        "GTLB": "tech_sw", "BILL": "tech_sw", "PCTY": "tech_sw", "CFLT": "tech_sw",
+        "U": "tech_sw", "PATH": "tech_sw",
+        "LSCC": "semis", "SLAB": "semis", "RMBS": "semis", "ALGM": "semis",
+        "CROX": "consumer_disc", "ELF": "consumer_disc", "CELH": "consumer_disc",
+        "WING": "consumer_disc", "TXRH": "consumer_disc", "FIVE": "consumer_disc",
+        "RH": "consumer_disc", "BOOT": "consumer_disc",
+        "EXEL": "healthcare", "HALO": "healthcare", "LNTH": "healthcare",
+        "INSP": "healthcare",
+        "OSK": "industrials", "THO": "industrials", "MIDD": "industrials",
+        "AIT": "industrials", "SAIA": "industrials",
+        "CHRD": "energy", "MTDR": "energy", "PR": "energy",
+        "KNSL": "financials", "PIPR": "financials", "JXN": "financials",
+        "BJ": "staples", "CASY": "staples",
+        # retired mega-cap entries, kept so sector_of still resolves them
         "AAPL": "tech_hw", "MSFT": "tech_sw", "NVDA": "semis", "AMZN": "consumer_disc",
         "META": "tech_sw", "GOOGL": "tech_sw", "TSLA": "consumer_disc", "AMD": "semis",
         "AVGO": "semis", "NFLX": "tech_sw", "CRM": "tech_sw", "ORCL": "tech_sw",
@@ -318,42 +375,80 @@ class ContextConfig:
 
 @dataclass(frozen=True)
 class StrategyConfig:
-    """How the four channels combine into a decision.
+    """How the channels combine into a decision — as ROLES, not a blend.
 
-    The central rule is confluence: independent channels must agree. One loud
-    reading is usually a data artefact — a busted print, a duplicated headline,
-    a mislabelled spread leg. Two channels being wrong in the same direction at
-    the same moment is far rarer than either being wrong alone.
+    The hypothesis (HYPOTHESIS.md) is post-earnings drift. That makes the
+    channel roles asymmetric, and the asymmetry is enforced here rather than
+    left to documentation:
+
+      TRIGGER   earnings. REQUIRED — no PEAD evidence, no trade, however loud
+                the other channels are. The direction of the trade is the
+                direction of the drift, full stop.
+      CONFIRM   market structure and options flow. They can scale conviction
+                up to the trigger's own strength, never beyond it, and one of
+                them must agree before anything trades (confluence).
+      VETO      news. It can only block or stand aside — a headline agreeing
+                with the drift adds nothing, because the news channel failed
+                the "why hasn't this been arbitraged away" test and must not
+                be allowed to create conviction. Knowing a guidance cut landed
+                an hour ago is a reason not to be long; it is never a reason
+                to be short at our latency.
+
+    A symmetric weighted blend — what this config replaced — quietly lets the
+    two demoted channels outvote the one carrying the hypothesis, at which
+    point the backtest measures a strategy nobody registered.
     """
-    min_sources: int = 2
+    min_sources: int = 2               # trigger + at least one confirmation
     min_conviction: float = 0.35
     min_reward_risk: float = 1.5
 
-    # Per-channel weights. Market structure is weighted highest not because it
-    # predicts best but because it is the least corruptible input: a bar is a
-    # bar, whereas news and flow both require interpretation before they mean
-    # anything.
+    # Roles.
+    trigger_sources: tuple[Source, ...] = (Source.EARNINGS,)
+    confirm_sources: tuple[Source, ...] = (Source.MARKET, Source.OPTIONS_FLOW)
+    veto_sources: tuple[Source, ...] = (Source.NEWS,)
+
+    # The trigger must say something. A 0.05 drift reading is a shrug, and a
+    # shrug must not become a position just because confirmations pile on.
+    min_trigger_score: float = 0.15
+
+    # An opposing veto-source reading at or above this blocks the entry.
+    veto_threshold: float = 0.35
+
+    # Weights. The trigger's weight is 1 by construction; confirmation weights
+    # scale how much each agreeing channel lifts conviction; the news weight
+    # scales its veto strength only.
     weights: Mapping[Source, float] = field(default_factory=lambda: {
-        Source.MARKET: 1.00,
-        Source.NEWS: 0.85,
-        Source.EARNINGS: 0.70,
-        Source.OPTIONS_FLOW: 0.80,
+        Source.EARNINGS: 1.00,
+        Source.OPTIONS_FLOW: 0.70,
+        Source.MARKET: 0.60,
+        Source.NEWS: 0.90,
     })
 
-    # A channel arguing the other way does more damage than one agreeing does
-    # good. Disagreement means the picture is genuinely unclear, and unclear is
-    # a reason to stand aside rather than to size down.
+    # A confirmation channel arguing the other way does more damage than one
+    # agreeing does good. Disagreement means the picture is genuinely unclear,
+    # and unclear is a reason to stand aside rather than to size down.
     conflict_penalty: float = 1.5
-    veto_on_conflict_above: float = 0.5    # opposing weight this strong blocks entry
+    veto_on_conflict_above: float = 0.5    # opposing confirm weight that blocks
 
-    # Targets and exits, in units of initial risk.
+    # Targets and exits, in units of initial risk — and, because the edge is a
+    # DRIFT with a lifespan, in units of time. The previous 30-hour clock was
+    # a day-trade exit stapled to a multi-day hypothesis: it realised the noise
+    # and amputated the drift.
     target_r: float = 2.0
     partial_take_r: float = 1.0
     partial_fraction: float = 0.5
     breakeven_after_partial: bool = True
     trail_atr_mult: float = 2.0
-    max_hold: timedelta = timedelta(hours=30)
-    time_stop_r_threshold: float = 0.3     # cut trades going nowhere
+    # Early cut: a trade going nowhere by day 3 has spent most of its drift
+    # window without drifting — the thesis is not working in the one interval
+    # where it was supposed to.
+    time_stop: timedelta = timedelta(days=3)
+    time_stop_r_threshold: float = 0.3
+    # Unconditional exit at the end of the drift window, whatever the P&L.
+    # Whatever the position is doing after 8 calendar days, it is no longer
+    # doing it because of the earnings event, and holding it further is an
+    # unregistered momentum bet wearing the hypothesis's clothes.
+    max_hold: timedelta = timedelta(days=8)
 
     # Session gating. The opening auction is a different market: spreads are
     # wide, the first prints are unreliable, and overnight orders unwind into

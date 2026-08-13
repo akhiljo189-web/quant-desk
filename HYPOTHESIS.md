@@ -150,14 +150,18 @@ not "we are faster".
 
 **What follows mechanically from it:**
 
-| Decision | Value | Why the hypothesis forces it |
-|---|---|---|
-| Horizon | 2–10 day hold, daily/4h bars | drift plays out over days; intraday bars measure noise |
-| Universe | 30–50 mid-caps | where coverage is thin enough for drift to survive |
-| Trigger | earnings surprise + confirmation | the event IS the hypothesis |
-| News role | veto / classification only | cannot win the speed race; can avoid a known-bad hold |
-| Flow role | confirmation only | already arbitraged at the horizons it is visible on |
-| Entry timing | day after release, not the print | the gap is not the drift, and is untradeable |
+| Decision | Value | Why the hypothesis forces it | Enforced |
+|---|---|---|---|
+| Horizon | 2–10 day hold | drift plays out over days; intraday bars measure noise | `max_hold=8d` unconditional, `time_stop=3d` for flat trades |
+| Universe | 30–50 mid-caps | where coverage is thin enough for drift to survive | 35-name $2–20B list in `UniverseConfig` (a snapshot — regenerate from a screener) |
+| Trigger | earnings surprise + confirmation | the event IS the hypothesis | `trigger_sources=(EARNINGS,)`, required; sign sets direction |
+| News role | veto / classification only | cannot win the speed race; can avoid a known-bad hold | only opposing news readings are consulted; agreement is discarded |
+| Flow role | confirmation only | already arbitraged at the horizons it is visible on | confirms scale conviction, capped at the trigger's strength |
+| Entry timing | day after release, not the print | the gap is not the drift, and is untradeable | 30-min post-release settling + PEAD evidence only after actuals' `known_at` |
+
+Each row's enforcement has a test. The one that matters most:
+`test_news_and_flow_alone_cannot_trade` — evidence that traded under the old
+symmetric blend must never trade again.
 
 **What it predicts, that would falsify it:** drift should be *monotonically
 weaker* with market cap and analyst coverage. If a backtest shows equal or

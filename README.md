@@ -95,7 +95,7 @@ engine over it. It should report **no trades** — synthetic data has no
 structure, so trading it would indicate a leak rather than a discovery.
 
 ```bash
-python3 -m unittest discover -s tests    # 166 tests
+python3 -m unittest discover -s tests    # 176 tests
 python3 -m qd.cli gate --live            # why live trading is blocked
 python3 -m qd.cli replay --symbols AAPL,MSFT --cost 2.0
 python3 -m qd.cli journal                # what it did, and what it declined
@@ -117,26 +117,32 @@ Each reduces to `Evidence` — a directional score in [-1, 1], a confidence, an
 observation time, a TTL, and the raw numbers behind it. The strategy layer
 combines them without knowing anything about their origins.
 
-Their **roles differ**, and only one carries the hypothesis:
+Their **roles differ**, and the roles are *enforced in `qd/strategy.py`*, not
+just documented:
 
-| Channel | Role | Survives "why not arbitraged?" |
-|---|---|---|
-| Earnings (PEAD) | **signal** | weakly — limits to arbitrage, not speed |
-| Market structure | filter | never claimed to be an edge |
-| Options flow | confirmation | mostly no — dealer hedging is instant |
-| News | veto only | no — sub-millisecond machine-readable feeds |
+| Channel | Role | Enforced as | Survives "why not arbitraged?" |
+|---|---|---|---|
+| Earnings (PEAD) | **trigger** | required; its sign IS the trade direction | weakly — limits to arbitrage, not speed |
+| Market structure | confirm | scales conviction, capped at the trigger's strength | never claimed to be an edge |
+| Options flow | confirm | same — can lift, never originate | mostly no — dealer hedging is instant |
+| News | veto | only its *opposing* reading is read; agreement is discarded | no — sub-millisecond machine-readable feeds |
 
-The news and flow modules are kept because their *filters* are the valuable
-part (straddle detection, opening-vs-closing, quote-relative aggressor), and
-because knowing a guidance cut landed 40 minutes ago is a good reason not to be
-long into the drift — a use that does not require winning a latency race.
+No earnings evidence means no trade, whatever the other channels say — the
+regression test for this is `test_news_and_flow_alone_cannot_trade`, which
+asserts that evidence that traded under the old symmetric blend never trades
+again. The news and flow modules are kept because their *filters* are the
+valuable part (straddle detection, opening-vs-closing, quote-relative
+aggressor), and because knowing a guidance cut landed 40 minutes ago is a good
+reason not to be long into the drift — a use that does not require winning a
+latency race.
 
 ### Market structure — `qd/features/market.py`
 Trend alignment (EMA separation in ATR units), participation (relative volume
 corrected for time of day — 400k shares by 09:45 is extraordinary, the same by
 15:45 is a quiet day), extension from VWAP, and opening-gap follow-through.
-Weighted highest of the four, not because it predicts best but because it is
-the least corruptible: a bar is a bar.
+Confirmation only: it answers "is price behaving consistently with the drift",
+which is a much weaker claim than "price is going up" — and the least
+corruptible input available, because a bar is a bar.
 
 ### News — `qd/features/news.py`
 A deterministic rule classifier over ~18 event categories with directional
@@ -212,7 +218,7 @@ risk, never to sit on it.
 
 ## Honest status
 
-- The **infrastructure** is built and tested: 166 tests, including explicit
+- The **infrastructure** is built and tested: 176 tests, including explicit
   look-ahead guards and a null test proving the evaluator reports NO EDGE on
   random data.
 - **No edge has been demonstrated**, and the hypothesis above is expected to
@@ -220,11 +226,13 @@ risk, never to sit on it.
   curriculum; the realistic outcome is "positive gross, zero-to-negative net of
   costs". That is stated up front so a marginal result reads as the coin-flip
   it is rather than as vindication.
-- **The configured universe is wrong for the hypothesis.** The 24 mega-caps in
-  `UniverseConfig` are the most efficiently priced equities in the world —
-  exactly where drift is closest to zero. This is an unresolved tension, not an
-  oversight: the liquidity filter that makes trading safe screens out the names
-  where the inefficiency lives. See the table in HYPOTHESIS.md.
+- **The universe is now mid-cap, and the list is a decaying snapshot.** The
+  35 names in `UniverseConfig` sit in the $2–20B band the hypothesis requires,
+  but market caps drift, names get acquired, and a hand-maintained list
+  accumulates survivorship. Regenerate it from a screener (cap $2–20B,
+  ADV > $10M, optionable) before any real run — the structural commitment is
+  the band, not the tickers. The safety-versus-edge trade this band represents
+  is documented in HYPOTHESIS.md.
 - Priors in `qd/config.py` and `qd/features/news.py` are **asserted, not
   fitted** — round numbers on purpose.
 - The system currently runs on **synthetic data**, where it correctly does
@@ -262,7 +270,7 @@ research/
   replay.py        walk-forward over the real engine
   evaluate.py      cost stress, ordering band, folds -> verdict -> edge proof
   synthetic.py     deterministic fake data for the null test
-tests/             166 tests
+tests/             176 tests
 ```
 
 ## Licence

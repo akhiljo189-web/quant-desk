@@ -1,12 +1,17 @@
 """
-Strategy: confluence, conflict handling, and — critically — proof that the
-system CAN trade.
+Strategy: the role model — trigger, confirm, veto — and proof it CAN trade.
 
-A system that never trades passes every safety test trivially. The tests that
-matter here come in pairs: one showing a gate blocks what it should, and one
-showing the same gate lets a genuinely aligned setup through. Without the
-second half of each pair, "no trades" and "correctly cautious" are
-indistinguishable.
+A system that never trades passes every safety test trivially, so the tests
+come in pairs: one showing a gate blocks what it should, one showing the same
+gate lets a genuinely aligned setup through. Without the second half, "no
+trades" and "correctly cautious" are indistinguishable.
+
+The central contract asserted here, which the docs registered and the code now
+enforces:
+
+    no earnings evidence  -> no trade, whatever the other channels say
+    news                  -> can only veto, never add conviction
+    confirmations         -> scale conviction up to the trigger, never past it
 """
 
 from __future__ import annotations
@@ -35,86 +40,180 @@ def snapshot(price=100.0, atr=2.0, **kw) -> MarketSnapshot:
 
 
 def ev(source: Source, score: float, conf: float = 0.8, kind="test",
-       age=timedelta(0), ttl=timedelta(hours=1)) -> Evidence:
+       age=timedelta(0), ttl=timedelta(hours=6)) -> Evidence:
     return Evidence(
         source=source, kind=kind, symbol="NVDA", score=score, confidence=conf,
         observed_at=NOW - age, ttl=ttl,
     )
 
 
-class ConfluenceTest(unittest.TestCase):
+def pead(score: float, conf: float = 0.9) -> Evidence:
+    return ev(Source.EARNINGS, score, conf, kind="pead")
+
+
+class TriggerTest(unittest.TestCase):
+    """No earnings evidence, no trade — the headline rule."""
+
     def setUp(self):
         self.s = Settings.load()
 
-    def test_single_source_never_trades(self):
-        """One loud channel is more likely to be that channel breaking than a
-        real opportunity."""
-        a = assess("NVDA", [ev(Source.NEWS, 0.95, 0.95)], snapshot(), NOW,
-                   self.s.strategy)
-        self.assertFalse(a.would_trade)
-        self.assertIn("confluence", a.blocked)
-
-    def test_two_agreeing_sources_can_trade(self):
+    def test_news_and_flow_alone_cannot_trade(self):
+        """THE regression test for the hypothesis restructure. Under the old
+        symmetric blend this exact evidence traded; it must never again."""
         a = assess(
             "NVDA",
-            [ev(Source.NEWS, 0.85, 0.9), ev(Source.OPTIONS_FLOW, 0.75, 0.85)],
+            [ev(Source.NEWS, 0.95, 0.95), ev(Source.OPTIONS_FLOW, 0.9, 0.9),
+             ev(Source.MARKET, 0.8, 0.8)],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertFalse(a.would_trade)
+        self.assertIn("no PEAD trigger", a.blocked)
+
+    def test_trigger_plus_confirmation_trades(self):
+        a = assess(
+            "NVDA", [pead(0.7), ev(Source.OPTIONS_FLOW, 0.6, 0.85)],
             snapshot(), NOW, self.s.strategy,
         )
         self.assertTrue(a.would_trade, a.blocked)
         self.assertIs(a.direction, Side.BUY)
-        self.assertGreaterEqual(a.agreeing_sources, 2)
 
-    def test_bearish_confluence_goes_short(self):
+    def test_negative_drift_goes_short(self):
         a = assess(
-            "NVDA",
-            [ev(Source.NEWS, -0.85, 0.9), ev(Source.OPTIONS_FLOW, -0.75, 0.85)],
+            "NVDA", [pead(-0.7), ev(Source.MARKET, -0.5, 0.8)],
             snapshot(), NOW, self.s.strategy,
         )
         self.assertTrue(a.would_trade, a.blocked)
         self.assertIs(a.direction, Side.SELL)
 
-    def test_conflicting_channels_are_vetoed(self):
+    def test_trigger_alone_fails_confluence(self):
+        a = assess("NVDA", [pead(0.9)], snapshot(), NOW, self.s.strategy)
+        self.assertFalse(a.would_trade)
+        self.assertIn("confluence", a.blocked)
+
+    def test_weak_trigger_is_a_shrug_not_a_trade(self):
+        a = assess(
+            "NVDA", [pead(0.08), ev(Source.OPTIONS_FLOW, 0.9, 0.9)],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertFalse(a.would_trade)
+        self.assertIn("below floor", a.blocked)
+
+    def test_expired_trigger_does_not_count(self):
         a = assess(
             "NVDA",
-            [ev(Source.NEWS, 0.9, 0.95), ev(Source.OPTIONS_FLOW, -0.9, 0.95),
-             ev(Source.MARKET, 0.3, 0.6)],
+            [ev(Source.EARNINGS, 0.9, 0.9, kind="pead",
+                age=timedelta(hours=8), ttl=timedelta(hours=1)),
+             ev(Source.OPTIONS_FLOW, 0.8, 0.9)],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertFalse(a.would_trade)
+        self.assertIn("no PEAD trigger", a.blocked)
+
+    def test_direction_follows_the_trigger_not_the_confirmations(self):
+        """Even a loud opposing confirmation cannot flip the direction — it can
+        only block. Direction is the drift's sign by construction."""
+        a = assess(
+            "NVDA", [pead(0.6), ev(Source.MARKET, -0.9, 0.9)],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertIs(a.direction, Side.BUY)
+        self.assertFalse(a.would_trade)   # blocked by conflict, not redirected
+
+
+class VetoTest(unittest.TestCase):
+    def setUp(self):
+        self.s = Settings.load()
+        self.base = [pead(0.7), ev(Source.OPTIONS_FLOW, 0.6, 0.85)]
+
+    def test_opposing_news_vetoes(self):
+        a = assess(
+            "NVDA", self.base + [ev(Source.NEWS, -0.8, 0.9, kind="guidance_cut")],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertFalse(a.would_trade)
+        self.assertIn("news veto", a.blocked)
+
+    def test_agreeing_news_adds_nothing(self):
+        """The demotion, asserted: a headline agreeing with the drift must not
+        raise conviction, because at our latency agreement is not information."""
+        without = assess("NVDA", self.base, snapshot(), NOW, self.s.strategy)
+        with_news = assess(
+            "NVDA", self.base + [ev(Source.NEWS, 0.9, 0.95, kind="guidance_raise")],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertTrue(without.would_trade)
+        self.assertTrue(with_news.would_trade)
+        self.assertAlmostEqual(without.conviction, with_news.conviction, places=9)
+        self.assertEqual(without.agreeing_sources, with_news.agreeing_sources)
+
+    def test_mild_opposing_news_reduces_nothing_but_is_recorded(self):
+        """Below the veto threshold the trade proceeds, but the journal keeps
+        the opposing reading — that is what you audit after a bad week."""
+        a = assess(
+            "NVDA", self.base + [ev(Source.NEWS, -0.2, 0.9)],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertTrue(a.would_trade, a.blocked)
+        self.assertLess(a.veto_score, 0.0)
+
+
+class ConfirmationTest(unittest.TestCase):
+    def setUp(self):
+        self.s = Settings.load()
+
+    def test_confirmations_lift_conviction(self):
+        one = assess(
+            "NVDA", [pead(0.7), ev(Source.OPTIONS_FLOW, 0.5, 0.8)],
+            snapshot(), NOW, self.s.strategy,
+        )
+        two = assess(
+            "NVDA",
+            [pead(0.7), ev(Source.OPTIONS_FLOW, 0.5, 0.8), ev(Source.MARKET, 0.6, 0.8)],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertGreater(two.conviction, one.conviction)
+
+    def test_conviction_never_exceeds_the_trigger(self):
+        """Confirmations scale conviction up to the trigger's own strength and
+        no further — enthusiasm cannot manufacture drift."""
+        a = assess(
+            "NVDA",
+            [pead(0.5),
+             ev(Source.OPTIONS_FLOW, 1.0, 1.0), ev(Source.MARKET, 1.0, 1.0)],
+            snapshot(), NOW, self.s.strategy,
+        )
+        self.assertLessEqual(a.conviction, abs(a.trigger_score) + 1e-9)
+
+    def test_opposing_confirmations_block_on_conflict(self):
+        a = assess(
+            "NVDA",
+            [pead(0.7), ev(Source.OPTIONS_FLOW, -0.8, 0.9), ev(Source.MARKET, 0.6, 0.8)],
             snapshot(), NOW, self.s.strategy,
         )
         self.assertFalse(a.would_trade)
 
-    def test_a_shrug_does_not_count_as_agreement(self):
-        """A 0.02 reading is not a confirming vote."""
+    def test_a_shrug_does_not_count_as_confirmation(self):
         a = assess(
-            "NVDA",
-            [ev(Source.NEWS, 0.9, 0.9), ev(Source.OPTIONS_FLOW, 0.02, 0.9)],
+            "NVDA", [pead(0.9), ev(Source.OPTIONS_FLOW, 0.02, 0.9)],
             snapshot(), NOW, self.s.strategy,
         )
         self.assertFalse(a.would_trade)
         self.assertIn("confluence", a.blocked)
 
-    def test_expired_evidence_is_ignored(self):
-        a = assess(
-            "NVDA",
-            [ev(Source.NEWS, 0.9, 0.9, age=timedelta(hours=3), ttl=timedelta(hours=1)),
-             ev(Source.OPTIONS_FLOW, 0.8, 0.9)],
-            snapshot(), NOW, self.s.strategy,
-        )
-        self.assertFalse(a.would_trade)
-
     def test_many_weak_market_readings_do_not_outvote_one_strong_channel(self):
         """Averaging within a source stops a channel that happens to emit four
         readings from dominating one that emits a single stronger one."""
         many = [ev(Source.MARKET, 0.2, 0.5, kind=f"m{i}") for i in range(4)]
-        per_source = aggregate(many + [ev(Source.NEWS, -0.9, 0.9)], NOW,
+        per_source = aggregate(many + [ev(Source.EARNINGS, -0.9, 0.9)], NOW,
                                self.s.strategy)
         self.assertLess(abs(per_source[Source.MARKET]), 0.35)
-        self.assertGreater(abs(per_source[Source.NEWS]), 0.7)
+        self.assertGreater(abs(per_source[Source.EARNINGS]), 0.7)
 
 
 class SessionGateTest(unittest.TestCase):
     def setUp(self):
         self.s = Settings.load()
-        self.aligned = [ev(Source.NEWS, 0.85, 0.9), ev(Source.OPTIONS_FLOW, 0.8, 0.9)]
+        self.aligned = [pead(0.8), ev(Source.OPTIONS_FLOW, 0.7, 0.9)]
 
     def _at(self, when: datetime):
         import dataclasses
@@ -150,8 +249,7 @@ class IntentTest(unittest.TestCase):
 
     def _intent(self, **snap_kw):
         a = assess(
-            "NVDA",
-            [ev(Source.NEWS, 0.85, 0.9), ev(Source.OPTIONS_FLOW, 0.8, 0.9)],
+            "NVDA", [pead(0.8), ev(Source.OPTIONS_FLOW, 0.7, 0.9)],
             snapshot(**snap_kw), NOW, self.s.strategy,
         )
         return build_intent(a, snapshot(**snap_kw), self.s.strategy, self.s.risk)
@@ -208,7 +306,20 @@ class IntentTest(unittest.TestCase):
     def test_intent_carries_its_own_justification(self):
         i = self._intent()
         self.assertTrue(i.evidence)
-        self.assertGreaterEqual(len(i.sources()), 2)
+        self.assertIn(Source.EARNINGS, i.sources())
+
+
+class ExitConfigTest(unittest.TestCase):
+    """The exit clock must match the registered drift horizon."""
+
+    def test_drift_window_is_multi_day(self):
+        cfg = StrategyConfig()
+        self.assertGreaterEqual(cfg.max_hold, timedelta(days=5))
+        self.assertLessEqual(cfg.max_hold, timedelta(days=10))
+
+    def test_early_cut_precedes_the_window_end(self):
+        cfg = StrategyConfig()
+        self.assertLess(cfg.time_stop, cfg.max_hold)
 
 
 if __name__ == "__main__":

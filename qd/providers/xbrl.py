@@ -29,6 +29,16 @@ THE THREE TRAPS IN XBRL DATA, all of which produce plausible numbers:
                      own fiscal sequence, and the seasonal comparison is
                      four quarters back in ITS OWN calendar.
 
+  THE fp FIELD       And the trap inside that one: XBRL's `fy`/`fp` describe
+                     the FILING a fact came from, not the period it covers. A
+                     10-K restates the prior year's quarters, so those rows
+                     arrive tagged `fp="FY"` with three-month spans ending in
+                     March, June and September. Matching on that label pairs
+                     a Q3 against a Q1 — the same wrong-quarter comparison the
+                     label matching was written to prevent, through a
+                     different door. Every label here is DERIVED from the
+                     period end against the company's own fiscal year end.
+
 The `filed` date on every observation is a genuine point-in-time stamp — the
 day the figure entered the public record. The exact announcement instant still
 comes from the 8-K (see providers/edgar.py); `filed` is the backstop when no
@@ -69,6 +79,47 @@ MAX_QUARTER_DAYS = 100
 # AGAINST, marks the comparison as contaminated. Fixed, not tuned — see
 # `compute_sue` for why the winsorizing cap cannot do this job.
 CONTAMINATION_SUE = 3.0
+
+
+ANNUAL_MIN_DAYS = 350
+ANNUAL_MAX_DAYS = 380
+
+# 52/53-week fiscal calendars drift a few days either side of a fixed anchor,
+# so a "December" year end can land on 2 January. Reading the label from a date
+# shifted back a week puts every such variant in the same month.
+_DRIFT = timedelta(days=7)
+
+
+def _anchor(end: datetime) -> datetime:
+    return end - _DRIFT
+
+
+def fiscal_year_end_month(ends: Iterable[datetime]) -> Optional[int]:
+    """The company's fiscal year end month, from its annual periods."""
+    counts: dict[int, int] = {}
+    for e in ends:
+        m = _anchor(e).month
+        counts[m] = counts.get(m, 0) + 1
+    if not counts:
+        return None
+    return max(counts.items(), key=lambda kv: (kv[1], -kv[0]))[0]
+
+
+def fiscal_label(end: datetime, fy_end_month: int) -> Optional[tuple[int, str]]:
+    """(fiscal_year, "Qn") for a period ending `end`, or None if off-grid.
+
+    Derived from the date rather than read from XBRL's `fp`, which names the
+    filing's period and not the fact's. Q1 is the quarter ending three months
+    after the fiscal year end; the fiscal year is the one this quarter closes
+    into, so Apple's December quarter is FY Q1 of the following year.
+    """
+    a = _anchor(end)
+    months_after = (a.month - fy_end_month) % 12
+    if months_after % 3:
+        return None                     # not on the company's quarterly grid
+    qi = months_after // 3 or 4
+    fy = a.year if a.month <= fy_end_month else a.year + 1
+    return fy, f"Q{qi}"
 
 
 @dataclass(frozen=True)
@@ -139,11 +190,16 @@ class XbrlFacts:
             rows = self._concept(cik, concept)
             if not rows:
                 continue
-            quarters = self._to_quarters(symbol, rows, concept, since)
+            fy_end = self._fiscal_year_end(rows)
+            if fy_end is None:
+                logger.warning("xbrl: %s — no annual period, cannot label "
+                               "quarters", symbol)
+                continue
+            quarters = self._to_quarters(symbol, rows, concept, since, fy_end)
             if len(quarters) < 8:         # too thin for a seasonal comparison
                 continue
             if include_derived_q4:
-                annuals = self._to_annuals(symbol, rows, concept, since)
+                annuals = self._to_annuals(symbol, rows, concept, since, fy_end)
                 derived = derive_q4(quarters, annuals)
                 if derived:
                     quarters = sorted(quarters + derived, key=lambda q: q.end)
@@ -203,8 +259,22 @@ class XbrlFacts:
         units = payload.get("units") or {}
         return units.get("USD/shares") or []
 
+    @staticmethod
+    def _fiscal_year_end(rows: Sequence[dict]) -> Optional[int]:
+        """The company's fiscal year end month, read from its annual periods."""
+        ends = []
+        for r in rows:
+            try:
+                start = datetime.strptime(r["start"], "%Y-%m-%d").replace(tzinfo=UTC)
+                end = datetime.strptime(r["end"], "%Y-%m-%d").replace(tzinfo=UTC)
+            except (KeyError, ValueError, TypeError):
+                continue
+            if ANNUAL_MIN_DAYS <= (end - start).days <= ANNUAL_MAX_DAYS:
+                ends.append(end)
+        return fiscal_year_end_month(ends)
+
     def _to_annuals(
-        self, symbol: str, rows, concept: str, since,
+        self, symbol: str, rows, concept: str, since, fy_end_month: int,
     ) -> list["Quarter"]:
         """Full-year figures, used only to derive the missing Q4."""
         best = {}
@@ -216,26 +286,35 @@ class XbrlFacts:
                 val = float(r["val"])
             except (KeyError, ValueError, TypeError):
                 continue
-            if not (350 <= (end - start).days <= 380):
+            if not (ANNUAL_MIN_DAYS <= (end - start).days <= ANNUAL_MAX_DAYS):
                 continue
             if since and end < ensure_utc(since):
                 continue
-            key = (r["start"], r["end"])
-            prior = best.get(key)
+            label = fiscal_label(end, fy_end_month)
+            if label is None:
+                continue
+            prior = best.get(label[0])
             if prior is None or filed < prior.filed:
-                best[key] = Quarter(
+                best[label[0]] = Quarter(
                     symbol=symbol.upper(), start=start, end=end, eps=val, filed=filed,
-                    fiscal_year=r.get("fy"), fiscal_period=r.get("fp"),
+                    fiscal_year=label[0], fiscal_period="FY",
                     form=r.get("form", ""), concept=concept,
                 )
         return sorted(best.values(), key=lambda q: q.end)
 
     def _to_quarters(
         self, symbol: str, rows: Sequence[dict], concept: str,
-        since: Optional[datetime],
+        since: Optional[datetime], fy_end_month: int,
     ) -> list[Quarter]:
-        """Filter to genuine three-month periods, first filing of each."""
-        best: dict[tuple[str, str], Quarter] = {}
+        """Filter to genuine three-month periods, first filing of each.
+
+        Keyed on the DERIVED fiscal label rather than on the raw start/end
+        pair: the same quarter is re-reported by the 10-Q and again by the next
+        10-K, sometimes with start dates a day or two apart, and two records
+        wearing one label would leave the seasonal match picking arbitrarily
+        between them.
+        """
+        best: dict[tuple[int, str], Quarter] = {}
 
         for r in rows:
             start_raw, end_raw, filed_raw = r.get("start"), r.get("end"), r.get("filed")
@@ -257,15 +336,23 @@ class XbrlFacts:
             if since and end < ensure_utc(since):
                 continue
 
-            key = (start_raw, end_raw)
-            prior = best.get(key)
+            # The fp trap: `r["fy"]`/`r["fp"]` label the FILING. A 10-K's
+            # restated quarters arrive as fp="FY" with March and June end
+            # dates, and pairing on that compares a Q3 to a Q1.
+            label = fiscal_label(end, fy_end_month)
+            if label is None:
+                logger.debug("xbrl: %s dropping off-grid period ending %s",
+                             symbol, end.date())
+                continue
+
+            prior = best.get(label)
             # The restatement trap: keep the EARLIEST filing of a period. A
             # later correction was not available when the trade would have
             # been made.
             if prior is None or filed < prior.filed:
-                best[key] = Quarter(
+                best[label] = Quarter(
                     symbol=symbol.upper(), start=start, end=end, eps=val, filed=filed,
-                    fiscal_year=r.get("fy"), fiscal_period=r.get("fp"),
+                    fiscal_year=label[0], fiscal_period=label[1],
                     form=r.get("form", ""), concept=concept,
                 )
 
@@ -386,7 +473,10 @@ def derive_q4(quarters: Sequence[Quarter], annuals: Sequence[Quarter]) -> list[Q
         fy = annual.fiscal_year
         if not fy:
             continue
-        parts = [q for q in by_year.get(int(fy), []) if q.fiscal_period in ("Q1", "Q2", "Q3")]
+        year = by_year.get(int(fy), [])
+        if any(q.fiscal_period == "Q4" for q in year):
+            continue          # the filer reported it; no need to reconstruct
+        parts = [q for q in year if q.fiscal_period in ("Q1", "Q2", "Q3")]
         if len(parts) != 3:
             continue          # incomplete year: deriving would be a guess
         q4_eps = annual.eps - sum(p.eps for p in parts)
@@ -517,5 +607,6 @@ def sue_to_surprise_pct(sue: Sue) -> Optional[float]:
 
 __all__ = [
     "XbrlFacts", "Quarter", "Sue", "compute_sue", "seasonal_differences",
-    "sue_to_surprise_pct", "EPS_CONCEPTS", "MIN_QUARTER_DAYS", "MAX_QUARTER_DAYS",
+    "sue_to_surprise_pct", "fiscal_label", "fiscal_year_end_month",
+    "EPS_CONCEPTS", "MIN_QUARTER_DAYS", "MAX_QUARTER_DAYS", "CONTAMINATION_SUE",
 ]

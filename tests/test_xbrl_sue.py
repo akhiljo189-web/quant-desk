@@ -20,7 +20,8 @@ from datetime import datetime, timedelta
 
 from qd.providers.xbrl import (
     MAX_QUARTER_DAYS, MIN_QUARTER_DAYS, Quarter, compute_sue, derive_q4,
-    seasonal_differences, split_factor_between, sue_to_surprise_pct,
+    fiscal_label, fiscal_year_end_month, seasonal_differences,
+    split_factor_between, sue_to_surprise_pct,
 )
 from qd.types import UTC
 
@@ -54,6 +55,103 @@ def ladder(values, start_year=2020) -> list[Quarter]:
         end = base + timedelta(days=91 * i)
         out.append(q(y + (i // 4), f"Q{(i % 4) + 1}", v, end.strftime("%Y-%m-%d")))
     return out
+
+
+class FiscalLabelTest(unittest.TestCase):
+    """XBRL's `fy`/`fp` name the FILING, not the period the fact covers, so
+    every label is derived from the period end instead. A 10-K restates the
+    prior year's quarters and tags them all fp="FY" with March, June and
+    September end dates — matching on that pairs a Q3 against a Q1."""
+
+    def d(self, s: str) -> datetime:
+        return datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=UTC)
+
+    def test_calendar_year_filer(self):
+        self.assertEqual(fiscal_label(self.d("2024-03-31"), 12), (2024, "Q1"))
+        self.assertEqual(fiscal_label(self.d("2024-06-30"), 12), (2024, "Q2"))
+        self.assertEqual(fiscal_label(self.d("2024-09-30"), 12), (2024, "Q3"))
+        self.assertEqual(fiscal_label(self.d("2024-12-31"), 12), (2024, "Q4"))
+
+    def test_septembers_filer_puts_december_in_the_next_fiscal_year(self):
+        """Apple's quarter ending December 2023 is FY2024 Q1. Calling it Q4
+        2023 compares it against the wrong quarter forever."""
+        self.assertEqual(fiscal_label(self.d("2023-12-30"), 9), (2024, "Q1"))
+        self.assertEqual(fiscal_label(self.d("2024-03-30"), 9), (2024, "Q2"))
+        self.assertEqual(fiscal_label(self.d("2024-06-29"), 9), (2024, "Q3"))
+        self.assertEqual(fiscal_label(self.d("2024-09-28"), 9), (2024, "Q4"))
+
+    def test_52_53_week_drift_stays_in_one_quarter(self):
+        """A 'Sunday nearest 31 December' year end lands anywhere from 28
+        December to 3 January. Reading the month off the raw date splits one
+        fiscal quarter across two labels."""
+        for end in ("2023-12-28", "2023-12-31", "2024-01-02", "2024-01-03"):
+            self.assertEqual(fiscal_label(self.d(end), 12), (2023, "Q4"), end)
+
+    def test_off_grid_periods_are_refused(self):
+        """A period that does not sit on the company's quarterly grid gets no
+        label — a wrong one is worse than none."""
+        self.assertIsNone(fiscal_label(self.d("2024-05-31"), 12))
+
+    def test_year_end_month_is_read_from_the_annual_periods(self):
+        ends = [self.d(x) for x in ("2022-09-24", "2023-09-30", "2024-09-28")]
+        self.assertEqual(fiscal_year_end_month(ends), 9)
+
+    def test_year_end_month_survives_a_january_rollover(self):
+        ends = [self.d(x) for x in ("2022-12-31", "2024-01-02", "2024-12-28")]
+        self.assertEqual(fiscal_year_end_month(ends), 12)
+
+
+class RowParsingTest(unittest.TestCase):
+    """`_to_quarters` against the row shapes SEC actually returns."""
+
+    def rows(self):
+        """One fiscal year of an Apple-shaped filer: quarters from 10-Qs, then
+        the SAME quarters restated inside the 10-K as fp='FY', plus the YTD
+        cumulative figures that share their end dates."""
+        return [
+            # 10-Q three-month figures
+            {"start": "2023-10-01", "end": "2023-12-30", "val": 2.18,
+             "filed": "2024-02-02", "fy": 2024, "fp": "Q1", "form": "10-Q"},
+            {"start": "2023-12-31", "end": "2024-03-30", "val": 1.53,
+             "filed": "2024-05-03", "fy": 2024, "fp": "Q2", "form": "10-Q"},
+            {"start": "2024-03-31", "end": "2024-06-29", "val": 1.40,
+             "filed": "2024-08-02", "fy": 2024, "fp": "Q3", "form": "10-Q"},
+            # the YTD trap: six months, same end date as Q2
+            {"start": "2023-10-01", "end": "2024-03-30", "val": 3.71,
+             "filed": "2024-05-03", "fy": 2024, "fp": "Q2", "form": "10-Q"},
+            # the fp trap: the 10-K restates Q1 as fp="FY"
+            {"start": "2023-10-01", "end": "2023-12-30", "val": 2.18,
+             "filed": "2024-11-01", "fy": 2025, "fp": "FY", "form": "10-K"},
+            # the annual, used to derive Q4
+            {"start": "2023-10-01", "end": "2024-09-28", "val": 6.08,
+             "filed": "2024-11-01", "fy": 2024, "fp": "FY", "form": "10-K"},
+        ]
+
+    def parse(self):
+        from qd.providers.xbrl import XbrlFacts
+        f = XbrlFacts.__new__(XbrlFacts)
+        rows = self.rows()
+        fy_end = f._fiscal_year_end(rows)
+        return fy_end, f._to_quarters("AAPL", rows, "EPSDiluted", None, fy_end)
+
+    def test_year_end_month_comes_from_the_annual_row(self):
+        self.assertEqual(self.parse()[0], 9)
+
+    def test_the_ytd_row_is_not_mistaken_for_a_quarter(self):
+        """3.71 is six months. Kept as Q2 it is a 140% fake surprise."""
+        self.assertNotIn(3.71, [q.eps for q in self.parse()[1]])
+
+    def test_the_10k_restatement_does_not_become_a_second_q1(self):
+        quarters = self.parse()[1]
+        q1 = [q for q in quarters if q.label == "Q1 2024"]
+        self.assertEqual(len(q1), 1)
+        # and it keeps the ORIGINAL 10-Q filing date, not the 10-K's
+        self.assertEqual(q1[0].filed.date().isoformat(), "2024-02-02")
+
+    def test_labels_are_derived_not_copied_from_fp(self):
+        """The 10-K row carried fy=2025 fp='FY' for a December quarter."""
+        labels = sorted(q.label for q in self.parse()[1])
+        self.assertEqual(labels, ["Q1 2024", "Q2 2024", "Q3 2024"])
 
 
 class SeasonalMatchingTest(unittest.TestCase):

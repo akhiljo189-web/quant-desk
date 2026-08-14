@@ -268,10 +268,28 @@ possible way to be wrong. Both behaviours are pinned by tests
 (`test_winsorizing_never_binds_on_a_lone_shock`,
 `test_a_rebound_off_a_one_off_is_flagged_contaminated`).
 
-The same pass found one real leak: prior differences were ordered by period
-END, but a derived Q4 carries its 10-K's filing date, so a quarter that ended
-earlier can enter the public record later. The scale now filters on filing
-date.
+The same pass found two more, both of which had been producing plausible
+numbers throughout the validation above:
+
+- **The scale leaked.** Prior differences were ordered by period END, but a
+  derived Q4 carries its 10-K's filing date, so a quarter that ended earlier
+  can enter the public record later. The scale now filters on filing date.
+
+- **The fiscal labels were wrong.** XBRL's `fy`/`fp` describe the FILING a fact
+  came from, not the period it covers. A 10-K restates the prior year's
+  quarters, so those rows arrive tagged `fp="FY"` with March, June and
+  September end dates. TXRH had fifteen quarters labelled `FY` ending across
+  four different months — pairing on that label compares a Q3 against a Q1,
+  which is the exact wrong-quarter failure the label matching was written to
+  prevent, arriving through a different door. Labels are now derived from the
+  period end against the company's own fiscal year end, which also handles
+  52/53-week calendars where a "December" year end lands on 2 January.
+
+After the fix the quarter counts are balanced (TXRH 17/17/16/16 across
+Q1–Q4, sixteen years) and the figures reconcile: AAPL FY2024 reads
+2.18 / 1.53 / 1.40 / 0.97, the last being the European State Aid tax
+charge — which is itself a live example of the contamination case, since
+FY2025 Q4 will measure against it.
 
 **What this does not fix.** XBRL cannot look forward, so there is no scheduled
 earnings calendar. Backtests are unaffected — every filing is in the past — but

@@ -123,6 +123,19 @@ cp .env.example .env        # POLYGON_API_KEY, FINNHUB_API_KEY, ALPACA_KEY_ID/SE
 python3 -m qd.cli run       # paper by default
 ```
 
+Keys are read from the environment, falling back to a `.env` file in the repo
+root (real environment variables win, so a stale `.env` can never silently
+override a deliberately-set one).
+
+**Running in a Claude Code cloud environment?** The data vendors are not on the
+default **Trusted** network allowlist, so requests fail with a `403 to CONNECT`
+policy denial at the egress proxy *before any key is used* — which looks like an
+auth failure and is not one. Set the environment's Network access to **Custom**
+and allow `api.polygon.io`, `finnhub.io`, and (for paper trading)
+`paper-api.alpaca.markets` and `data.alpaca.markets`, keeping the default
+package-manager list ticked. Network policy and environment variables are both
+read once at container start, so changes need a new session.
+
 ---
 
 ## The four channels

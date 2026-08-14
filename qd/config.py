@@ -34,6 +34,40 @@ class Mode(str, Enum):
         return self is Mode.LIVE
 
 
+def load_dotenv(path: str = ".env") -> int:
+    """Load KEY=value pairs from a .env file into os.environ.
+
+    Hand-rolled rather than pulling in python-dotenv, so the core stays
+    stdlib-only and `selftest` keeps running on a bare interpreter.
+
+    Real environment variables WIN over the file. A cloud environment or a CI
+    secret is the more authoritative source, and a stale .env silently
+    overriding one would be the sort of thing you debug for an hour — the
+    system would be using a key you cannot see in your shell.
+    """
+    if not os.path.exists(path):
+        return 0
+    loaded = 0
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key, value = key.strip(), value.strip()
+            if value and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            if key and key not in os.environ:
+                os.environ[key] = value
+                loaded += 1
+    return loaded
+
+
+# Loaded at import so any entry point — CLI, tests, a bare `python -c` — sees
+# the same configuration without each having to remember to call it.
+load_dotenv()
+
+
 def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip()
 

@@ -243,9 +243,17 @@ class PolygonProvider:
                     "ticker": sym.upper(),
                     "published_utc.gte": since.isoformat(),
                     "published_utc.lte": until.isoformat(),
-                    "order": "asc", "limit": 50,
+                    # A live cycle asks for the last few minutes and gets one
+                    # page regardless. These bounds are for the ARCHIVE build,
+                    # where the window is years: at 50-per-page and a 3-page
+                    # cap the fetch returned the 150 OLDEST articles and
+                    # stopped, so the veto channel existed for the first months
+                    # of a four-year backtest and was silently absent after —
+                    # which removes vetoes, and removing vetoes only ever adds
+                    # trades that should not have been taken.
+                    "order": "asc", "limit": 1000,
                 },
-                tag=f"news-{sym}", cap=3,
+                tag=f"news-{sym}", cap=10,
             )
             for r in results:
                 nid = r.get("id") or r.get("article_url", "")

@@ -36,12 +36,15 @@ here too. This narrows survivorship; it does not eliminate it. The remaining
 bias points the same direction as all the others — flattering — so treat a
 marginal result as negative.
 
-THE SELECTION RULE IS FIXED IN ADVANCE. Within the cap band, names are
-stratified by market cap and the most liquid name in each stratum is taken.
-Ranking purely by liquidity would pile the universe into the top of the band
-and quietly destroy the one out-of-sample structural prediction the hypothesis
-makes: that drift weakens monotonically with capitalisation. That prediction
-needs spread across the band to be testable at all.
+THE SELECTION RULE IS FIXED IN ADVANCE, and both halves of it matter. Names are
+stratified by market cap, because ranking purely by liquidity piles the universe
+into the top of the band and destroys the one out-of-sample structural
+prediction the hypothesis makes — that drift weakens monotonically with
+capitalisation, which needs spread across the band to be testable at all. And
+within a stratum the LOWEST-TURNOVER name is taken, because selecting on volume
+selects for prices being argued over continuously, which is the opposite of the
+slow repricing the whole hypothesis rests on. See `stratified` for what the
+alternative produced.
 """
 
 from __future__ import annotations
@@ -315,6 +318,103 @@ def tradeable_trigger(facts, edgar, as_of: date, min_quarters: int = 12,
     return check
 
 
+# SIC major groups to the coarse buckets the correlation cap already uses. The
+# mapping is deliberately rough: a wrong-but-stable grouping still stops eight
+# names in one industry being loaded as if they were eight independent bets,
+# which is the only thing the cap is for.
+_SIC_BUCKETS: tuple[tuple[int, int, str], ...] = (
+    (100, 999, "materials"),        # agriculture
+    (1000, 1099, "materials"),      # metal mining
+    (1200, 1399, "energy"),
+    (1400, 1499, "materials"),
+    (1500, 1799, "industrials"),    # construction
+    (2000, 2199, "staples"),        # food, tobacco
+    (2200, 2399, "consumer_disc"),  # textiles, apparel
+    (2400, 2599, "industrials"),
+    (2600, 2699, "materials"),      # paper
+    (2700, 2799, "consumer_disc"),  # publishing
+    (2800, 2829, "materials"),      # industrial chemicals
+    (2830, 2836, "healthcare"),     # pharma, biologics
+    (2840, 2899, "staples"),        # soap, cosmetics
+    (2900, 2999, "energy"),         # petroleum refining
+    (3000, 3299, "materials"),
+    (3300, 3399, "materials"),      # primary metals
+    (3400, 3569, "industrials"),
+    (3570, 3579, "tech_hw"),        # computers
+    (3600, 3639, "industrials"),    # electrical equipment
+    (3640, 3669, "tech_hw"),
+    (3670, 3679, "semis"),
+    (3680, 3699, "tech_hw"),
+    (3700, 3799, "consumer_disc"),  # transport equipment
+    (3800, 3829, "tech_hw"),        # instruments
+    (3830, 3899, "healthcare"),     # medical devices
+    (3900, 3999, "consumer_disc"),
+    (4000, 4299, "industrials"),    # rail, trucking
+    (4400, 4599, "industrials"),
+    (4600, 4699, "energy"),         # pipelines
+    (4700, 4799, "industrials"),
+    (4800, 4899, "telecom"),
+    (4900, 4999, "utilities"),
+    (5000, 5199, "industrials"),    # wholesale
+    (5200, 5599, "consumer_disc"),
+    (5600, 5699, "consumer_disc"),
+    (5700, 5799, "consumer_disc"),
+    (5800, 5899, "consumer_disc"),  # restaurants
+    (5900, 5999, "consumer_disc"),
+    (6000, 6199, "financials"),
+    (6200, 6299, "financials"),
+    (6300, 6499, "insurance"),
+    (6500, 6599, "reits"),
+    (6700, 6799, "financials"),
+    (7000, 7099, "consumer_disc"),
+    (7200, 7299, "consumer_disc"),
+    (7300, 7379, "tech_sw"),
+    (7380, 7399, "industrials"),
+    (7500, 7999, "consumer_disc"),
+    (8000, 8099, "healthcare"),
+    (8200, 8299, "consumer_disc"),
+    (8700, 8799, "industrials"),    # engineering, consulting
+)
+
+
+def sector_for_sic(sic: Optional[str]) -> str:
+    try:
+        code = int(sic)
+    except (TypeError, ValueError):
+        return "unknown"
+    for lo, hi, bucket in _SIC_BUCKETS:
+        if lo <= code <= hi:
+            return bucket
+    return "unknown"
+
+
+def sector_map(edgar, symbols: Iterable[str]) -> dict[str, str]:
+    """symbol -> coarse sector, from the SIC code on the SEC submission.
+
+    Without this every screened name resolves to "unknown" and the correlated
+    exposure cap collapses the whole portfolio into ONE bucket: the run then
+    holds two or three positions at a time and looks like a strategy that
+    rarely fires, rather than a risk cap misconfigured by an empty map.
+    """
+    out: dict[str, str] = {}
+    for symbol in symbols:
+        cik = edgar.cik_for(symbol)
+        if cik is None:
+            out[symbol.upper()] = "unknown"
+            continue
+        try:
+            payload = edgar._data.get(f"/submissions/CIK{cik}.json",
+                                      tag=f"edgar-{symbol}")
+        except ProviderError:
+            out[symbol.upper()] = "unknown"
+            continue
+        out[symbol.upper()] = sector_for_sic((payload or {}).get("sic"))
+    unknown = sum(1 for v in out.values() if v == "unknown")
+    if unknown:
+        logger.warning("sector map: %d of %d symbols unresolved", unknown, len(out))
+    return out
+
+
 def stratified(pool: Sequence[Candidate], count: int, eligible=None,
                max_tries: int = 6) -> list[Candidate]:
     """`count` names spread evenly across the capitalisation band.
@@ -383,4 +483,5 @@ def describe(picked: Sequence[Candidate], pool_size: int, as_of: date) -> str:
 
 __all__ = ["Candidate", "candidates", "common_stock", "dollar_volume",
            "shares_outstanding", "stratified", "tradeable_trigger", "describe",
+           "sector_map", "sector_for_sic",
            "ADV_SESSIONS", "MIN_SESSIONS", "MAX_TURNOVER"]

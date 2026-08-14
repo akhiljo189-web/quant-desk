@@ -1,0 +1,2012 @@
+{
+ "2022-01-05": [
+  {
+   "symbol": "NXRT",
+   "cik": "0001620393",
+   "name": "NexPoint Residential Trust, Inc.",
+   "market_cap": 2059018807,
+   "adv": 10737680,
+   "price": 81.54,
+   "shares_dated": "2021-11-03",
+   "pool": 851
+  },
+  {
+   "symbol": "SBCF",
+   "cik": "0000730708",
+   "name": "SEACOAST BANKING CORPORATION OF FLORIDA",
+   "market_cap": 2104653372,
+   "adv": 10350709,
+   "price": 36.07,
+   "shares_dated": "2021-09-30",
+   "pool": 851
+  },
+  {
+   "symbol": "WSBC",
+   "cik": "0000203596",
+   "name": "WESBANCO, INC.",
+   "market_cap": 2296531252,
+   "adv": 10323861,
+   "price": 36.32,
+   "shares_dated": "2021-11-01",
+   "pool": 851
+  },
+  {
+   "symbol": "IOSP",
+   "cik": "0001054905",
+   "name": "INNOSPEC INC.",
+   "market_cap": 2390308052,
+   "adv": 12852850,
+   "price": 96.98,
+   "shares_dated": "2021-10-26",
+   "pool": 851
+  },
+  {
+   "symbol": "ACA",
+   "cik": "0001739445",
+   "name": "Arcosa, Inc.",
+   "market_cap": 2577905078,
+   "adv": 12619148,
+   "price": 53.34,
+   "shares_dated": "2021-10-15",
+   "pool": 851
+  },
+  {
+   "symbol": "SCL",
+   "cik": "0000094049",
+   "name": "STEPAN CO",
+   "market_cap": 2747279958,
+   "adv": 10634810,
+   "price": 122.56,
+   "shares_dated": "2021-10-29",
+   "pool": 851
+  },
+  {
+   "symbol": "MCY",
+   "cik": "0000064996",
+   "name": "MERCURY GENERAL CORPORATION",
+   "market_cap": 2982824350,
+   "adv": 11434783,
+   "price": 53.87,
+   "shares_dated": "2021-10-28",
+   "pool": 851
+  },
+  {
+   "symbol": "AUB",
+   "cik": "0000883948",
+   "name": "ATLANTIC UNION BANKSHARES CORPORATION",
+   "market_cap": 2984515308,
+   "adv": 12310735,
+   "price": 39.45,
+   "shares_dated": "2021-10-28",
+   "pool": 851
+  },
+  {
+   "symbol": "HLIO",
+   "cik": "0001024795",
+   "name": "HELIOS TECHNOLOGIES, INC.",
+   "market_cap": 3202521858,
+   "adv": 10839724,
+   "price": 98.84,
+   "shares_dated": "2021-10-29",
+   "pool": 851
+  },
+  {
+   "symbol": "IPAR",
+   "cik": "0000822663",
+   "name": "Inter Parfums, Inc.",
+   "market_cap": 3287947307,
+   "adv": 12327933,
+   "price": 103.61,
+   "shares_dated": "2021-11-08",
+   "pool": 851
+  },
+  {
+   "symbol": "BOH",
+   "cik": "0000046195",
+   "name": "BANK OF HAWAII CORP",
+   "market_cap": 3495690515,
+   "adv": 14642122,
+   "price": 86.86,
+   "shares_dated": "2021-10-20",
+   "pool": 851
+  },
+  {
+   "symbol": "GOLF",
+   "cik": "0001672013",
+   "name": "Acushnet Holdings Corp.",
+   "market_cap": 3745545840,
+   "adv": 10577204,
+   "price": 50.87,
+   "shares_dated": "2021-10-29",
+   "pool": 851
+  },
+  {
+   "symbol": "NJR",
+   "cik": "0000356309",
+   "name": "NEW JERSEY RESOURCES CORPORATION",
+   "market_cap": 3804317394,
+   "adv": 16510850,
+   "price": 39.45,
+   "shares_dated": "2021-08-02",
+   "pool": 851
+  },
+  {
+   "symbol": "AIT",
+   "cik": "0000109563",
+   "name": "APPLIED INDUSTRIAL TECHNOLOGIES, INC.",
+   "market_cap": 3916888736,
+   "adv": 11466416,
+   "price": 101.85,
+   "shares_dated": "2021-10-15",
+   "pool": 851
+  },
+  {
+   "symbol": "TTEC",
+   "cik": "0001013880",
+   "name": "TTEC HOLDINGS, INC.",
+   "market_cap": 4120952577,
+   "adv": 11166862,
+   "price": 87.7,
+   "shares_dated": "2021-11-03",
+   "pool": 851
+  },
+  {
+   "symbol": "FIZZ",
+   "cik": "0000069891",
+   "name": "National Beverage Corp.",
+   "market_cap": 4234963523,
+   "adv": 16165909,
+   "price": 45.38,
+   "shares_dated": "2021-12-06",
+   "pool": 851
+  },
+  {
+   "symbol": "SFBS",
+   "cik": "0001430723",
+   "name": "ServisFirst Bancshares, Inc.",
+   "market_cap": 4652400636,
+   "adv": 15476124,
+   "price": 85.82,
+   "shares_dated": "2021-10-25",
+   "pool": 851
+  },
+  {
+   "symbol": "GTES",
+   "cik": "0001718512",
+   "name": "Gates Industrial Corporation plc",
+   "market_cap": 4787737395,
+   "adv": 10745725,
+   "price": 16.4,
+   "shares_dated": "2021-11-05",
+   "pool": 851
+  },
+  {
+   "symbol": "RLI",
+   "cik": "0000084246",
+   "name": "RLI Corp",
+   "market_cap": 5012186264,
+   "adv": 13425945,
+   "price": 110.78,
+   "shares_dated": "2021-10-14",
+   "pool": 851
+  },
+  {
+   "symbol": "SAFE",
+   "cik": "0001095651",
+   "name": "iStar\u00a0Inc.",
+   "market_cap": 5230842544,
+   "adv": 10917454,
+   "price": 75.29,
+   "shares_dated": "2021-11-01",
+   "pool": 851
+  },
+  {
+   "symbol": "BCPC",
+   "cik": "0000009326",
+   "name": "Balchem Corporation",
+   "market_cap": 5303136433,
+   "adv": 22578997,
+   "price": 163.77,
+   "shares_dated": "2021-10-21",
+   "pool": 851
+  },
+  {
+   "symbol": "MSA",
+   "cik": "0000066570",
+   "name": "MSA SAFETY INC",
+   "market_cap": 5738396674,
+   "adv": 12621715,
+   "price": 146.36,
+   "shares_dated": "2021-10-22",
+   "pool": 851
+  },
+  {
+   "symbol": "PRI",
+   "cik": "0001475922",
+   "name": "Primerica, Inc.",
+   "market_cap": 6029311214,
+   "adv": 18595601,
+   "price": 152.68,
+   "shares_dated": "2021-10-31",
+   "pool": 851
+  },
+  {
+   "symbol": "FOXF",
+   "cik": "0001424929",
+   "name": "Fox Factory Holding Corp.",
+   "market_cap": 6621272367,
+   "adv": 25964647,
+   "price": 157.26,
+   "shares_dated": "2021-11-02",
+   "pool": 851
+  },
+  {
+   "symbol": "PPC",
+   "cik": "0000802481",
+   "name": "PILGRIM\u2019S PRIDE CORPORATION",
+   "market_cap": 6766869246,
+   "adv": 10310441,
+   "price": 27.77,
+   "shares_dated": "2021-10-27",
+   "pool": 851
+  },
+  {
+   "symbol": "BOKF",
+   "cik": "0000875357",
+   "name": "BOK FINANCIAL CORP",
+   "market_cap": 7409822447,
+   "adv": 17570005,
+   "price": 108.02,
+   "shares_dated": "2021-09-30",
+   "pool": 851
+  },
+  {
+   "symbol": "CHE",
+   "cik": "0000019584",
+   "name": "CHEMED CORPORATION",
+   "market_cap": 7794667259,
+   "adv": 42002873,
+   "price": 506.31,
+   "shares_dated": "2021-09-30",
+   "pool": 851
+  },
+  {
+   "symbol": "CBSH",
+   "cik": "0000022356",
+   "name": "COMMERCE BANCSHARES, INC.",
+   "market_cap": 8169172285,
+   "adv": 27696103,
+   "price": 70.32,
+   "shares_dated": "2021-11-03",
+   "pool": 851
+  },
+  {
+   "symbol": "PAG",
+   "cik": "0001019849",
+   "name": "Penske Automotive Group, Inc.",
+   "market_cap": 8313367135,
+   "adv": 31176143,
+   "price": 106.18,
+   "shares_dated": "2021-10-25",
+   "pool": 851
+  },
+  {
+   "symbol": "ITT",
+   "cik": "0000216228",
+   "name": "ITT INC.",
+   "market_cap": 8750032000,
+   "adv": 33346895,
+   "price": 102.22,
+   "shares_dated": "2021-11-02",
+   "pool": 851
+  },
+  {
+   "symbol": "PEN",
+   "cik": "0001321732",
+   "name": "Penumbra, Inc",
+   "market_cap": 9713652488,
+   "adv": 47600761,
+   "price": 260.01,
+   "shares_dated": "2021-10-21",
+   "pool": 851
+  },
+  {
+   "symbol": "DOC",
+   "cik": "0000765880",
+   "name": "Healthpeak Properties, Inc.",
+   "market_cap": 10080650570,
+   "adv": 36463460,
+   "price": 18.7,
+   "shares_dated": "2021-11-01",
+   "pool": 851
+  },
+  {
+   "symbol": "SNX",
+   "cik": "0001177394",
+   "name": "TD SYNNEX CORPORATION",
+   "market_cap": 11102386629,
+   "adv": 34655201,
+   "price": 115.64,
+   "shares_dated": "2021-09-30",
+   "pool": 851
+  },
+  {
+   "symbol": "AFG",
+   "cik": "0001042046",
+   "name": "AMERICAN FINANCIAL GROUP, INC.",
+   "market_cap": 11476202592,
+   "adv": 33999538,
+   "price": 135.32,
+   "shares_dated": "2021-11-01",
+   "pool": 851
+  },
+  {
+   "symbol": "OTEX",
+   "cik": "0001002638",
+   "name": "OPEN TEXT CORP",
+   "market_cap": 12402405066,
+   "adv": 20993108,
+   "price": 45.47,
+   "shares_dated": "2021-11-02",
+   "pool": 851
+  },
+  {
+   "symbol": "MORN",
+   "cik": "0001289419",
+   "name": "MORNINGSTAR, INC.",
+   "market_cap": 13847443811,
+   "adv": 37870514,
+   "price": 321.32,
+   "shares_dated": "2021-10-22",
+   "pool": 851
+  },
+  {
+   "symbol": "L",
+   "cik": "0000060086",
+   "name": "LOEWS CORPORATION",
+   "market_cap": 14911569737,
+   "adv": 41708397,
+   "price": 58.78,
+   "shares_dated": "2021-10-29",
+   "pool": 851
+  },
+  {
+   "symbol": "LNT",
+   "cik": "0000352541",
+   "name": "ALLIANT ENERGY CORP",
+   "market_cap": 15337101812,
+   "adv": 56049359,
+   "price": 61.26,
+   "shares_dated": "2021-09-30",
+   "pool": 851
+  },
+  {
+   "symbol": "ACGL",
+   "cik": "0000947484",
+   "name": "Arch Capital Group Ltd.",
+   "market_cap": 17221564938,
+   "adv": 59027343,
+   "price": 44.6,
+   "shares_dated": "2021-11-01",
+   "pool": 851
+  },
+  {
+   "symbol": "UI",
+   "cik": "0001511737",
+   "name": "UBIQUITI INC.",
+   "market_cap": 18400601924,
+   "adv": 39710590,
+   "price": 294.59,
+   "shares_dated": "2021-11-03",
+   "pool": 851
+  }
+ ],
+ "2023-01-05": [
+  {
+   "symbol": "KAI",
+   "cik": "0000886346",
+   "name": "KADANT INC",
+   "market_cap": 2076120978,
+   "adv": 10148587,
+   "price": 178,
+   "shares_dated": "2022-10-28",
+   "pool": 822
+  },
+  {
+   "symbol": "MGPI",
+   "cik": "0000835011",
+   "name": "MGP INGREDIENTS, INC.",
+   "market_cap": 2198303898,
+   "adv": 11188572,
+   "price": 99.95,
+   "shares_dated": "2022-10-28",
+   "pool": 822
+  },
+  {
+   "symbol": "CBZ",
+   "cik": "0000944148",
+   "name": "CBIZ, Inc.",
+   "market_cap": 2317971530,
+   "adv": 10470230,
+   "price": 45.6,
+   "shares_dated": "2022-10-24",
+   "pool": 822
+  },
+  {
+   "symbol": "MGRC",
+   "cik": "0000752714",
+   "name": "McGRATH RENTCORP",
+   "market_cap": 2393380801,
+   "adv": 10179275,
+   "price": 98.16,
+   "shares_dated": "2022-10-26",
+   "pool": 822
+  },
+  {
+   "symbol": "SAFE",
+   "cik": "0001095651",
+   "name": "iStar\u00a0Inc.",
+   "market_cap": 2544567134,
+   "adv": 10163664,
+   "price": 29.35,
+   "shares_dated": "2022-11-01",
+   "pool": 822
+  },
+  {
+   "symbol": "NGVT",
+   "cik": "0001653477",
+   "name": "INGEVITY CORPORATION",
+   "market_cap": 2688888707,
+   "adv": 12103250,
+   "price": 71.95,
+   "shares_dated": "2022-11-01",
+   "pool": 822
+  },
+  {
+   "symbol": "SFNC",
+   "cik": "0000090498",
+   "name": "SIMMONS FIRST NATIONAL CORP",
+   "market_cap": 2741274700,
+   "adv": 13147430,
+   "price": 21.59,
+   "shares_dated": "2022-11-02",
+   "pool": 822
+  },
+  {
+   "symbol": "IBOC",
+   "cik": "0000315709",
+   "name": "INTERNATIONAL BANCSHARES CORPORATION",
+   "market_cap": 2813134274,
+   "adv": 12771252,
+   "price": 45.29,
+   "shares_dated": "2022-10-31",
+   "pool": 822
+  },
+  {
+   "symbol": "SPXC",
+   "cik": "0000088205",
+   "name": "SPX TECHNOLOGIES, INC.",
+   "market_cap": 2970594826,
+   "adv": 12219476,
+   "price": 65.74,
+   "shares_dated": "2022-10-28",
+   "pool": 822
+  },
+  {
+   "symbol": "EBC",
+   "cik": "0001810546",
+   "name": "Eastern Bankshares, Inc.",
+   "market_cap": 3106008100,
+   "adv": 10954660,
+   "price": 17.58,
+   "shares_dated": "2022-11-02",
+   "pool": 822
+  },
+  {
+   "symbol": "PLTK",
+   "cik": "0001828016",
+   "name": "PLAYTIKA HOLDING CORP.",
+   "market_cap": 3311510986,
+   "adv": 10846709,
+   "price": 9.17,
+   "shares_dated": "2022-11-03",
+   "pool": 822
+  },
+  {
+   "symbol": "CBU",
+   "cik": "0000723188",
+   "name": "COMMUNITY BANK SYSTEM, INC.",
+   "market_cap": 3319173703,
+   "adv": 12320715,
+   "price": 61.77,
+   "shares_dated": "2022-10-31",
+   "pool": 822
+  },
+  {
+   "symbol": "SFBS",
+   "cik": "0001430723",
+   "name": "ServisFirst Bancshares, Inc.",
+   "market_cap": 3653857463,
+   "adv": 11540396,
+   "price": 67.26,
+   "shares_dated": "2022-10-27",
+   "pool": 822
+  },
+  {
+   "symbol": "BCPC",
+   "cik": "0000009326",
+   "name": "Balchem Corporation",
+   "market_cap": 3772341972,
+   "adv": 12718761,
+   "price": 117.39,
+   "shares_dated": "2022-10-27",
+   "pool": 822
+  },
+  {
+   "symbol": "UMBF",
+   "cik": "0000101382",
+   "name": "UMB FINANCIAL CORP",
+   "market_cap": 3957743862,
+   "adv": 16834273,
+   "price": 81.92,
+   "shares_dated": "2022-10-21",
+   "pool": 822
+  },
+  {
+   "symbol": "ESNT",
+   "cik": "0001448893",
+   "name": "ESSENT GROUP LTD.",
+   "market_cap": 4153200544,
+   "adv": 15366722,
+   "price": 38.56,
+   "shares_dated": "2022-11-03",
+   "pool": 822
+  },
+  {
+   "symbol": "APG",
+   "cik": "0001796209",
+   "name": "APi Group Corporation",
+   "market_cap": 4315582674,
+   "adv": 11451048,
+   "price": 18.45,
+   "shares_dated": "2022-10-27",
+   "pool": 822
+  },
+  {
+   "symbol": "HE",
+   "cik": "0000354707",
+   "name": "HAWAIIAN ELECTRIC INDUSTRIES,\u00a0INC.",
+   "market_cap": 4580243168,
+   "adv": 15756213,
+   "price": 41.84,
+   "shares_dated": "2022-10-25",
+   "pool": 822
+  },
+  {
+   "symbol": "RYN",
+   "cik": "0000052827",
+   "name": "RAYONIER INC.",
+   "market_cap": 4862744826,
+   "adv": 13127490,
+   "price": 33.21,
+   "shares_dated": "2022-10-28",
+   "pool": 822
+  },
+  {
+   "symbol": "PRI",
+   "cik": "0001475922",
+   "name": "Primerica, Inc.",
+   "market_cap": 5260572097,
+   "adv": 16559176,
+   "price": 142.57,
+   "shares_dated": "2022-10-31",
+   "pool": 822
+  },
+  {
+   "symbol": "GBCI",
+   "cik": "0000868671",
+   "name": "GLACIER BANCORP, INC.",
+   "market_cap": 5281368367,
+   "adv": 19462929,
+   "price": 47.68,
+   "shares_dated": "2022-10-18",
+   "pool": 822
+  },
+  {
+   "symbol": "MSA",
+   "cik": "0000066570",
+   "name": "MSA SAFETY INC",
+   "market_cap": 5533239086,
+   "adv": 14607906,
+   "price": 141.16,
+   "shares_dated": "2022-10-21",
+   "pool": 822
+  },
+  {
+   "symbol": "PPC",
+   "cik": "0000802481",
+   "name": "PILGRIM\u2019S PRIDE CORPORATION",
+   "market_cap": 5885722495,
+   "adv": 19586209,
+   "price": 24.89,
+   "shares_dated": "2022-10-26",
+   "pool": 822
+  },
+  {
+   "symbol": "RLI",
+   "cik": "0000084246",
+   "name": "RLI Corp",
+   "market_cap": 6030305144,
+   "adv": 23291628,
+   "price": 132.89,
+   "shares_dated": "2022-10-12",
+   "pool": 822
+  },
+  {
+   "symbol": "GNTX",
+   "cik": "0000355811",
+   "name": "GENTEX CORPORATION",
+   "market_cap": 6608179053,
+   "adv": 26022828,
+   "price": 28.17,
+   "shares_dated": "2022-10-28",
+   "pool": 822
+  },
+  {
+   "symbol": "DCI",
+   "cik": "0000029644",
+   "name": "DONALDSON COMPANY, INC.",
+   "market_cap": 7113817343,
+   "adv": 27709283,
+   "price": 58.46,
+   "shares_dated": "2022-11-29",
+   "pool": 822
+  },
+  {
+   "symbol": "ATR",
+   "cik": "0000896622",
+   "name": "AptarGroup,\u00a0Inc",
+   "market_cap": 7319642977,
+   "adv": 25388758,
+   "price": 112.12,
+   "shares_dated": "2022-10-21",
+   "pool": 822
+  },
+  {
+   "symbol": "CBSH",
+   "cik": "0000022356",
+   "name": "COMMERCE BANCSHARES, INC.",
+   "market_cap": 8075394886,
+   "adv": 25426568,
+   "price": 67.66,
+   "shares_dated": "2022-11-02",
+   "pool": 822
+  },
+  {
+   "symbol": "OTEX",
+   "cik": "0001002638",
+   "name": "OPEN TEXT CORP",
+   "market_cap": 8125973486,
+   "adv": 17674176,
+   "price": 30.07,
+   "shares_dated": "2022-11-01",
+   "pool": 822
+  },
+  {
+   "symbol": "MORN",
+   "cik": "0001289419",
+   "name": "MORNINGSTAR,\u00a0INC.",
+   "market_cap": 9122959187,
+   "adv": 21981438,
+   "price": 214.93,
+   "shares_dated": "2022-10-21",
+   "pool": 822
+  },
+  {
+   "symbol": "RGA",
+   "cik": "0000898174",
+   "name": "REINSURANCE GROUP OF AMERICA, INCORPORATED",
+   "market_cap": 9704587055,
+   "adv": 59628090,
+   "price": 145.2,
+   "shares_dated": "2022-10-31",
+   "pool": 822
+  },
+  {
+   "symbol": "LOGI",
+   "cik": "0001032975",
+   "name": "LOGITECH INTERNATIONAL S.A.",
+   "market_cap": 10354146606,
+   "adv": 31639142,
+   "price": 64.05,
+   "shares_dated": "2022-10-13",
+   "pool": 822
+  },
+  {
+   "symbol": "ACM",
+   "cik": "0000868857",
+   "name": "AECOM",
+   "market_cap": 11258402736,
+   "adv": 63691633,
+   "price": 81.2,
+   "shares_dated": "2022-11-10",
+   "pool": 822
+  },
+  {
+   "symbol": "AFG",
+   "cik": "0001042046",
+   "name": "AMERICAN FINANCIAL GROUP, INC.",
+   "market_cap": 11760872069,
+   "adv": 57323623,
+   "price": 138.13,
+   "shares_dated": "2022-11-01",
+   "pool": 822
+  },
+  {
+   "symbol": "WTRG",
+   "cik": "0000078128",
+   "name": "ESSENTIAL UTILITIES, INC.",
+   "market_cap": 12561109142,
+   "adv": 50919050,
+   "price": 47.89,
+   "shares_dated": "2022-10-21",
+   "pool": 822
+  },
+  {
+   "symbol": "L",
+   "cik": "0000060086",
+   "name": "LOEWS CORP",
+   "market_cap": 14058055749,
+   "adv": 55192418,
+   "price": 59.21,
+   "shares_dated": "2022-10-28",
+   "pool": 822
+  },
+  {
+   "symbol": "UI",
+   "cik": "0001511737",
+   "name": "UBIQUITI INC.",
+   "market_cap": 16120593910,
+   "adv": 21818505,
+   "price": 266.77,
+   "shares_dated": "2022-11-03",
+   "pool": 822
+  },
+  {
+   "symbol": "CINF",
+   "cik": "0000020286",
+   "name": "CINCINNATI FINANCIAL CORPORATION",
+   "market_cap": 16766850134,
+   "adv": 57801692,
+   "price": 106.67,
+   "shares_dated": "2022-10-26",
+   "pool": 822
+  },
+  {
+   "symbol": "ROL",
+   "cik": "0000084839",
+   "name": "ROLLINS, INC.",
+   "market_cap": 17881674151,
+   "adv": 64124437,
+   "price": 36.31,
+   "shares_dated": "2022-10-17",
+   "pool": 822
+  },
+  {
+   "symbol": "TDY",
+   "cik": "0001094285",
+   "name": "TELEDYNE TECHNOLOGIES INC",
+   "market_cap": 18674849584,
+   "adv": 73523236,
+   "price": 398.43,
+   "shares_dated": "2022-10-19",
+   "pool": 822
+  }
+ ],
+ "2024-01-05": [
+  {
+   "symbol": "OSIS",
+   "cik": "0001039065",
+   "name": "OSI SYSTEMS,\u00a0INC.",
+   "market_cap": 2096299703,
+   "adv": 12050160,
+   "price": 123.4,
+   "shares_dated": "2023-10-24",
+   "pool": 878
+  },
+  {
+   "symbol": "FFBC",
+   "cik": "0000708955",
+   "name": "FIRST FINANCIAL BANCORP /OH/",
+   "market_cap": 2190652452,
+   "adv": 10043924,
+   "price": 23.03,
+   "shares_dated": "2023-11-02",
+   "pool": 878
+  },
+  {
+   "symbol": "HTH",
+   "cik": "0001265131",
+   "name": "Hilltop Holdings\u00a0Inc.",
+   "market_cap": 2228156180,
+   "adv": 11629193,
+   "price": 34.19,
+   "shares_dated": "2023-10-20",
+   "pool": 878
+  },
+  {
+   "symbol": "DNUT",
+   "cik": "0001857154",
+   "name": "Krispy Kreme, Inc.",
+   "market_cap": 2390748000,
+   "adv": 10782304,
+   "price": 14.18,
+   "shares_dated": "2023-11-06",
+   "pool": 878
+  },
+  {
+   "symbol": "MTRN",
+   "cik": "0001104657",
+   "name": "MATERION CORPORATION",
+   "market_cap": 2536124773,
+   "adv": 11356707,
+   "price": 122.86,
+   "shares_dated": "2023-09-29",
+   "pool": 878
+  },
+  {
+   "symbol": "ESE",
+   "cik": "0000866706",
+   "name": "ESCO Technologies\u00a0Inc.",
+   "market_cap": 2678710022,
+   "adv": 10894507,
+   "price": 103.81,
+   "shares_dated": "2023-11-10",
+   "pool": 878
+  },
+  {
+   "symbol": "LTH",
+   "cik": "0001869198",
+   "name": "Life Time Group Holdings, Inc.",
+   "market_cap": 2800790928,
+   "adv": 10022241,
+   "price": 14.26,
+   "shares_dated": "2023-10-27",
+   "pool": 878
+  },
+  {
+   "symbol": "IOSP",
+   "cik": "0001054905",
+   "name": "INNOSPEC INC.",
+   "market_cap": 2957786791,
+   "adv": 12748067,
+   "price": 118.95,
+   "shares_dated": "2023-11-01",
+   "pool": 878
+  },
+  {
+   "symbol": "CBZ",
+   "cik": "0000944148",
+   "name": "CBIZ, Inc.",
+   "market_cap": 3025399202,
+   "adv": 14847467,
+   "price": 60.7,
+   "shares_dated": "2023-10-23",
+   "pool": 878
+  },
+  {
+   "symbol": "CATY",
+   "cik": "0000861842",
+   "name": "CATHAY GENERAL BANCORP",
+   "market_cap": 3162405006,
+   "adv": 13901607,
+   "price": 43.53,
+   "shares_dated": "2023-10-31",
+   "pool": 878
+  },
+  {
+   "symbol": "JOE",
+   "cik": "0000745308",
+   "name": "The St. Joe Company",
+   "market_cap": 3352306257,
+   "adv": 11502054,
+   "price": 57.43,
+   "shares_dated": "2023-10-23",
+   "pool": 878
+  },
+  {
+   "symbol": "SFBS",
+   "cik": "0001430723",
+   "name": "ServisFirst Bancshares, Inc.",
+   "market_cap": 3463165515,
+   "adv": 14705168,
+   "price": 63.62,
+   "shares_dated": "2023-10-27",
+   "pool": 878
+  },
+  {
+   "symbol": "CCOI",
+   "cik": "0001158324",
+   "name": "COGENT COMMUNICATIONS HOLDINGS,\u00a0INC.",
+   "market_cap": 3621990289,
+   "adv": 22168685,
+   "price": 74.49,
+   "shares_dated": "2023-10-31",
+   "pool": 878
+  },
+  {
+   "symbol": "WTM",
+   "cik": "0000776867",
+   "name": "WHITE MOUNTAINS INSURANCE GROUP,\u00a0LTD",
+   "market_cap": 3776666700,
+   "adv": 14042176,
+   "price": 1475,
+   "shares_dated": "2023-11-02",
+   "pool": 878
+  },
+  {
+   "symbol": "FFIN",
+   "cik": "0000036029",
+   "name": "First Financial Bankshares, Inc.",
+   "market_cap": 4092903126,
+   "adv": 15903427,
+   "price": 28.68,
+   "shares_dated": "2023-11-06",
+   "pool": 878
+  },
+  {
+   "symbol": "GATX",
+   "cik": "0000040211",
+   "name": "GATX Corporation",
+   "market_cap": 4204975000,
+   "adv": 14831895,
+   "price": 118.45,
+   "shares_dated": "2023-09-30",
+   "pool": 878
+  },
+  {
+   "symbol": "SHC",
+   "cik": "0001822479",
+   "name": "SOTERA HEALTH COMPANY",
+   "market_cap": 4451306281,
+   "adv": 10029618,
+   "price": 15.75,
+   "shares_dated": "2023-10-25",
+   "pool": 878
+  },
+  {
+   "symbol": "IPGP",
+   "cik": "0001111928",
+   "name": "IPG PHOTONICS CORP",
+   "market_cap": 4777644266,
+   "adv": 21122638,
+   "price": 101.82,
+   "shares_dated": "2023-10-30",
+   "pool": 878
+  },
+  {
+   "symbol": "FIZZ",
+   "cik": "0000069891",
+   "name": "National Beverage Corp.",
+   "market_cap": 4802254999,
+   "adv": 10114382,
+   "price": 51.42,
+   "shares_dated": "2023-12-04",
+   "pool": 878
+  },
+  {
+   "symbol": "ESAB",
+   "cik": "0001877322",
+   "name": "ESAB Corporation",
+   "market_cap": 5088083898,
+   "adv": 23680975,
+   "price": 84.42,
+   "shares_dated": "2023-09-29",
+   "pool": 878
+  },
+  {
+   "symbol": "NOVT",
+   "cik": "0001076930",
+   "name": "NOVANTA INC.",
+   "market_cap": 5510499736,
+   "adv": 28344771,
+   "price": 153.88,
+   "shares_dated": "2023-10-30",
+   "pool": 878
+  },
+  {
+   "symbol": "BLCO",
+   "cik": "0001860742",
+   "name": "Bausch & Lomb Corp",
+   "market_cap": 5750526054,
+   "adv": 11845689,
+   "price": 16.39,
+   "shares_dated": "2023-10-27",
+   "pool": 878
+  },
+  {
+   "symbol": "RLI",
+   "cik": "0000084246",
+   "name": "RLI Corp",
+   "market_cap": 6211948722,
+   "adv": 25250796,
+   "price": 136.15,
+   "shares_dated": "2023-10-16",
+   "pool": 878
+  },
+  {
+   "symbol": "MSA",
+   "cik": "0000066570",
+   "name": "MSA SAFETY INC",
+   "market_cap": 6332640080,
+   "adv": 27390248,
+   "price": 161.09,
+   "shares_dated": "2023-10-20",
+   "pool": 878
+  },
+  {
+   "symbol": "PPC",
+   "cik": "0000802481",
+   "name": "PILGRIMS PRIDE CORP",
+   "market_cap": 6703522890,
+   "adv": 17939388,
+   "price": 28.31,
+   "shares_dated": "2023-10-25",
+   "pool": 878
+  },
+  {
+   "symbol": "DOC",
+   "cik": "0000765880",
+   "name": "Healthpeak Properties, Inc.",
+   "market_cap": 7090083628,
+   "adv": 25846772,
+   "price": 12.96,
+   "shares_dated": "2023-10-27",
+   "pool": 878
+  },
+  {
+   "symbol": "PRI",
+   "cik": "0001475922",
+   "name": "Primerica, Inc.",
+   "market_cap": 7284613382,
+   "adv": 29700506,
+   "price": 207.93,
+   "shares_dated": "2023-10-31",
+   "pool": 878
+  },
+  {
+   "symbol": "UI",
+   "cik": "0001511737",
+   "name": "UBIQUITI INC.",
+   "market_cap": 7785711931,
+   "adv": 15309381,
+   "price": 128.8,
+   "shares_dated": "2023-11-02",
+   "pool": 878
+  },
+  {
+   "symbol": "ORI",
+   "cik": "0000074260",
+   "name": "OLD REPUBLIC INTERNATIONAL CORPORATION",
+   "market_cap": 8363666880,
+   "adv": 35687188,
+   "price": 29.83,
+   "shares_dated": "2023-09-30",
+   "pool": 878
+  },
+  {
+   "symbol": "TTEK",
+   "cik": "0000831641",
+   "name": "TETRA TECH,\u00a0INC.",
+   "market_cap": 8603758195,
+   "adv": 42839879,
+   "price": 161.58,
+   "shares_dated": "2023-11-08",
+   "pool": 878
+  },
+  {
+   "symbol": "CHDN",
+   "cik": "0000020212",
+   "name": "Churchill Downs Inc",
+   "market_cap": 9483239467,
+   "adv": 40252707,
+   "price": 127.13,
+   "shares_dated": "2023-10-19",
+   "pool": 878
+  },
+  {
+   "symbol": "PAG",
+   "cik": "0001019849",
+   "name": "Penske Automotive Group, Inc.",
+   "market_cap": 10121103093,
+   "adv": 33808199,
+   "price": 150.58,
+   "shares_dated": "2023-10-18",
+   "pool": 878
+  },
+  {
+   "symbol": "OTEX",
+   "cik": "0001002638",
+   "name": "OPEN TEXT CORP",
+   "market_cap": 10895886035,
+   "adv": 19269480,
+   "price": 40.13,
+   "shares_dated": "2023-10-27",
+   "pool": 878
+  },
+  {
+   "symbol": "MORN",
+   "cik": "0001289419",
+   "name": "MORNINGSTAR,\u00a0INC.",
+   "market_cap": 11651920878,
+   "adv": 44365815,
+   "price": 272.88,
+   "shares_dated": "2023-11-02",
+   "pool": 878
+  },
+  {
+   "symbol": "RPM",
+   "cik": "0000110621",
+   "name": "RPM INTERNATIONAL INC/DE/",
+   "market_cap": 13500648110,
+   "adv": 66756876,
+   "price": 104.76,
+   "shares_dated": "2023-12-27",
+   "pool": 878
+  },
+  {
+   "symbol": "LOGI",
+   "cik": "0001032975",
+   "name": "LOGITECH INTERNATIONAL S.A.",
+   "market_cap": 14511836331,
+   "adv": 26699381,
+   "price": 92.56,
+   "shares_dated": "2023-10-12",
+   "pool": 878
+  },
+  {
+   "symbol": "SSNC",
+   "cik": "0001402436",
+   "name": "SS&C TECHNOLOGIES HOLDINGS, INC.",
+   "market_cap": 14806389712,
+   "adv": 67340628,
+   "price": 59.82,
+   "shares_dated": "2023-10-25",
+   "pool": 878
+  },
+  {
+   "symbol": "CINF",
+   "cik": "0000020286",
+   "name": "CINCINNATI FINANCIAL CORPORATION",
+   "market_cap": 16845612819,
+   "adv": 70567770,
+   "price": 107.36,
+   "shares_dated": "2023-10-20",
+   "pool": 878
+  },
+  {
+   "symbol": "WLK",
+   "cik": "0001262823",
+   "name": "Westlake Corporation",
+   "market_cap": 17721868214,
+   "adv": 44345311,
+   "price": 138.3,
+   "shares_dated": "2023-10-26",
+   "pool": 878
+  },
+  {
+   "symbol": "BRO",
+   "cik": "0000079282",
+   "name": "BROWN & BROWN, INC.",
+   "market_cap": 19808009038,
+   "adv": 94779354,
+   "price": 69.6,
+   "shares_dated": "2023-10-23",
+   "pool": 878
+  }
+ ],
+ "2025-01-05": [
+  {
+   "symbol": "OSW",
+   "cik": "0001758488",
+   "name": "OneSpaWorld Holdings Limited",
+   "market_cap": 2008931119,
+   "adv": 10099864,
+   "price": 19.32,
+   "shares_dated": "2024-10-28",
+   "pool": 922
+  },
+  {
+   "symbol": "TRMK",
+   "cik": "0000036146",
+   "name": "Trustmark Corp",
+   "market_cap": 2146035132,
+   "adv": 10294358,
+   "price": 35.09,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "FRME",
+   "cik": "0000712534",
+   "name": "FIRST MERCHANTS CORP",
+   "market_cap": 2318094292,
+   "adv": 10287393,
+   "price": 39.51,
+   "shares_dated": "2024-10-28",
+   "pool": 922
+  },
+  {
+   "symbol": "PFS",
+   "cik": "0001178970",
+   "name": "PROVIDENT FINANCIAL SERVICES, INC.",
+   "market_cap": 2470144030,
+   "adv": 10786448,
+   "price": 18.93,
+   "shares_dated": "2024-11-01",
+   "pool": 922
+  },
+  {
+   "symbol": "FFBC",
+   "cik": "0000708955",
+   "name": "FIRST FINANCIAL BANCORP /OH/",
+   "market_cap": 2552425060,
+   "adv": 11641963,
+   "price": 26.73,
+   "shares_dated": "2024-11-06",
+   "pool": 922
+  },
+  {
+   "symbol": "PRK",
+   "cik": "0000805676",
+   "name": "PARK NATIONAL CORPORATION",
+   "market_cap": 2797927733,
+   "adv": 11183735,
+   "price": 173.15,
+   "shares_dated": "2024-11-01",
+   "pool": 922
+  },
+  {
+   "symbol": "AWR",
+   "cik": "0001056903",
+   "name": "American States Water Co",
+   "market_cap": 2886925160,
+   "adv": 15672225,
+   "price": 76.38,
+   "shares_dated": "2024-11-05",
+   "pool": 922
+  },
+  {
+   "symbol": "SXT",
+   "cik": "0000310142",
+   "name": "Sensient Technologies Corp",
+   "market_cap": 2961866087,
+   "adv": 13079370,
+   "price": 69.92,
+   "shares_dated": "2024-10-23",
+   "pool": 922
+  },
+  {
+   "symbol": "GRND",
+   "cik": "0001820144",
+   "name": "Grindr Inc.",
+   "market_cap": 3171958542,
+   "adv": 14812537,
+   "price": 17.96,
+   "shares_dated": "2024-11-05",
+   "pool": 922
+  },
+  {
+   "symbol": "CBU",
+   "cik": "0000723188",
+   "name": "COMMUNITY FINANCIAL SYSTEM, INC.",
+   "market_cap": 3257158383,
+   "adv": 14088581,
+   "price": 61.97,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "ESE",
+   "cik": "0000866706",
+   "name": "ESCO Technologies\u00a0Inc.",
+   "market_cap": 3433336795,
+   "adv": 11767867,
+   "price": 133.15,
+   "shares_dated": "2024-11-13",
+   "pool": 922
+  },
+  {
+   "symbol": "BLKB",
+   "cik": "0001280058",
+   "name": "Blackbaud, Inc.",
+   "market_cap": 3663687593,
+   "adv": 15024528,
+   "price": 74.41,
+   "shares_dated": "2024-12-31",
+   "pool": 922
+  },
+  {
+   "symbol": "BANF",
+   "cik": "0000760498",
+   "name": "BancFirst Corporation",
+   "market_cap": 3875090123,
+   "adv": 11597152,
+   "price": 116.97,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "IBOC",
+   "cik": "0000315709",
+   "name": "INTERNATIONAL BANCSHARES CORPORATION",
+   "market_cap": 3935571789,
+   "adv": 18658573,
+   "price": 63.27,
+   "shares_dated": "2024-11-04",
+   "pool": 922
+  },
+  {
+   "symbol": "IPAR",
+   "cik": "0000822663",
+   "name": "INTERPARFUMS, INC.",
+   "market_cap": 4165858217,
+   "adv": 16696841,
+   "price": 130.06,
+   "shares_dated": "2024-11-06",
+   "pool": 922
+  },
+  {
+   "symbol": "GOLF",
+   "cik": "0001672013",
+   "name": "Acushnet Holdings Corp.",
+   "market_cap": 4372340063,
+   "adv": 18794536,
+   "price": 71.91,
+   "shares_dated": "2024-11-01",
+   "pool": 922
+  },
+  {
+   "symbol": "SFBS",
+   "cik": "0001430723",
+   "name": "ServisFirst Bancshares, Inc.",
+   "market_cap": 4599857778,
+   "adv": 21169787,
+   "price": 84.32,
+   "shares_dated": "2024-10-29",
+   "pool": 922
+  },
+  {
+   "symbol": "CNS",
+   "cik": "0001284812",
+   "name": "COHEN\u00a0& STEERS, INC.",
+   "market_cap": 4681648391,
+   "adv": 17641508,
+   "price": 92.6,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "FFIN",
+   "cik": "0000036029",
+   "name": "First Financial Bankshares, Inc.",
+   "market_cap": 5147624323,
+   "adv": 19091852,
+   "price": 36.02,
+   "shares_dated": "2024-11-04",
+   "pool": 922
+  },
+  {
+   "symbol": "BCPC",
+   "cik": "0000009326",
+   "name": "Balchem Corp",
+   "market_cap": 5171327461,
+   "adv": 22046749,
+   "price": 159.08,
+   "shares_dated": "2024-10-17",
+   "pool": 922
+  },
+  {
+   "symbol": "HOMB",
+   "cik": "0001331520",
+   "name": "HOME BANCSHARES, INC.",
+   "market_cap": 5616048754,
+   "adv": 24843840,
+   "price": 28.25,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "GBCI",
+   "cik": "0000868671",
+   "name": "GLACIER BANCORP, INC.",
+   "market_cap": 5709581496,
+   "adv": 29204574,
+   "price": 50.35,
+   "shares_dated": "2024-10-22",
+   "pool": 922
+  },
+  {
+   "symbol": "AWI",
+   "cik": "0000007431",
+   "name": "ARMSTRONG WORLD INDUSTRIES, INC.",
+   "market_cap": 6193007478,
+   "adv": 25915010,
+   "price": 142.08,
+   "shares_dated": "2024-10-24",
+   "pool": 922
+  },
+  {
+   "symbol": "MSA",
+   "cik": "0000066570",
+   "name": "MSA SAFETY INC",
+   "market_cap": 6481031456,
+   "adv": 34513524,
+   "price": 164.87,
+   "shares_dated": "2024-10-18",
+   "pool": 922
+  },
+  {
+   "symbol": "BOKF",
+   "cik": "0000875357",
+   "name": "BOK FINANCIAL CORP",
+   "market_cap": 6938895088,
+   "adv": 17036836,
+   "price": 108.22,
+   "shares_dated": "2024-09-30",
+   "pool": 922
+  },
+  {
+   "symbol": "RLI",
+   "cik": "0000084246",
+   "name": "RLI Corp",
+   "market_cap": 7452403230,
+   "adv": 29341569,
+   "price": 162.64,
+   "shares_dated": "2024-10-15",
+   "pool": 922
+  },
+  {
+   "symbol": "OTEX",
+   "cik": "0001002638",
+   "name": "OPEN TEXT CORP",
+   "market_cap": 7596200200,
+   "adv": 20847731,
+   "price": 28.57,
+   "shares_dated": "2024-10-25",
+   "pool": 922
+  },
+  {
+   "symbol": "PEGA",
+   "cik": "0001013857",
+   "name": "PEGASYSTEMS INC.",
+   "market_cap": 8103734856,
+   "adv": 38947316,
+   "price": 94.5,
+   "shares_dated": "2024-10-16",
+   "pool": 922
+  },
+  {
+   "symbol": "DRS",
+   "cik": "0001833756",
+   "name": "Leonardo DRS, Inc.",
+   "market_cap": 8693375300,
+   "adv": 21093234,
+   "price": 32.88,
+   "shares_dated": "2024-10-29",
+   "pool": 922
+  },
+  {
+   "symbol": "PRI",
+   "cik": "0001475922",
+   "name": "Primerica, Inc.",
+   "market_cap": 9223854960,
+   "adv": 47140173,
+   "price": 276.4,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "PAG",
+   "cik": "0001019849",
+   "name": "Penske Automotive Group, Inc.",
+   "market_cap": 10061444871,
+   "adv": 24359939,
+   "price": 150.69,
+   "shares_dated": "2024-10-28",
+   "pool": 922
+  },
+  {
+   "symbol": "ATR",
+   "cik": "0000896622",
+   "name": "AptarGroup,\u00a0Inc",
+   "market_cap": 10347475686,
+   "adv": 43137642,
+   "price": 155.5,
+   "shares_dated": "2024-10-21",
+   "pool": 922
+  },
+  {
+   "symbol": "AFG",
+   "cik": "0001042046",
+   "name": "AMERICAN FINANCIAL GROUP, INC.",
+   "market_cap": 11330719695,
+   "adv": 43512996,
+   "price": 135,
+   "shares_dated": "2024-11-01",
+   "pool": 922
+  },
+  {
+   "symbol": "WPC",
+   "cik": "0001025378",
+   "name": "W. P. Carey Inc.",
+   "market_cap": 12003785594,
+   "adv": 68414816,
+   "price": 54.85,
+   "shares_dated": "2024-10-25",
+   "pool": 922
+  },
+  {
+   "symbol": "CNA",
+   "cik": "0000021175",
+   "name": "CNA FINANCIAL CORPORATION",
+   "market_cap": 12948975909,
+   "adv": 12855768,
+   "price": 47.81,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "MORN",
+   "cik": "0001289419",
+   "name": "MORNINGSTAR,\u00a0INC.",
+   "market_cap": 14354621906,
+   "adv": 43585028,
+   "price": 334.73,
+   "shares_dated": "2024-10-18",
+   "pool": 922
+  },
+  {
+   "symbol": "FNF",
+   "cik": "0001331875",
+   "name": "FIDELITY NATIONAL FINANCIAL, INC.",
+   "market_cap": 15548179742,
+   "adv": 57174054,
+   "price": 56.82,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "MANH",
+   "cik": "0001056696",
+   "name": "MANHATTAN ASSOCIATES, INC.",
+   "market_cap": 16663779122,
+   "adv": 101985863,
+   "price": 272.84,
+   "shares_dated": "2024-10-22",
+   "pool": 922
+  },
+  {
+   "symbol": "RBA",
+   "cik": "0001046102",
+   "name": "RB Global, Inc",
+   "market_cap": 17006741525,
+   "adv": 70979342,
+   "price": 92.22,
+   "shares_dated": "2024-10-31",
+   "pool": 922
+  },
+  {
+   "symbol": "L",
+   "cik": "0000060086",
+   "name": "LOEWS CORP",
+   "market_cap": 18369467850,
+   "adv": 67573969,
+   "price": 84.35,
+   "shares_dated": "2024-11-01",
+   "pool": 922
+  }
+ ],
+ "2026-01-05": [
+  {
+   "symbol": "TSLX",
+   "cik": "0001508655",
+   "name": "Sixth Street Specialty Lending, Inc.",
+   "market_cap": 2086425864,
+   "adv": 10087613,
+   "price": 22.08,
+   "shares_dated": "2025-11-04",
+   "pool": 965
+  },
+  {
+   "symbol": "FBNC",
+   "cik": "0000811589",
+   "name": "FIRST BANCORP",
+   "market_cap": 2154538495,
+   "adv": 10340551,
+   "price": 51.96,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "NBTB",
+   "cik": "0000790359",
+   "name": "NBT BANCORP INC",
+   "market_cap": 2217641031,
+   "adv": 10100223,
+   "price": 42.39,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "TRMK",
+   "cik": "0000036146",
+   "name": "Trustmark Corporation",
+   "market_cap": 2403126860,
+   "adv": 12034939,
+   "price": 40.08,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "PRK",
+   "cik": "0000805676",
+   "name": "PARK NATIONAL CORPORATION",
+   "market_cap": 2492452175,
+   "adv": 11174619,
+   "price": 155.02,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "MGRC",
+   "cik": "0000752714",
+   "name": "McGRATH RENTCORP",
+   "market_cap": 2635416232,
+   "adv": 13383241,
+   "price": 107.08,
+   "shares_dated": "2025-10-22",
+   "pool": 965
+  },
+  {
+   "symbol": "MGEE",
+   "cik": "0001161728",
+   "name": "MGE Energy, Inc.",
+   "market_cap": 2831993298,
+   "adv": 10398358,
+   "price": 77.5,
+   "shares_dated": "2025-10-30",
+   "pool": 965
+  },
+  {
+   "symbol": "FIZZ",
+   "cik": "0000069891",
+   "name": "National Beverage Corp.",
+   "market_cap": 2977500844,
+   "adv": 12238357,
+   "price": 31.8,
+   "shares_dated": "2025-12-08",
+   "pool": 965
+  },
+  {
+   "symbol": "CBU",
+   "cik": "0000723188",
+   "name": "COMMUNITY FINANCIAL SYSTEM, INC.",
+   "market_cap": 3097022168,
+   "adv": 13093452,
+   "price": 58.81,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "AZZ",
+   "cik": "0000008947",
+   "name": "AZZ Inc.",
+   "market_cap": 3313680369,
+   "adv": 17736912,
+   "price": 110.99,
+   "shares_dated": "2026-01-02",
+   "pool": 965
+  },
+  {
+   "symbol": "USLM",
+   "cik": "0000082020",
+   "name": "UNITED STATES LIME & MINERALS INC",
+   "market_cap": 3571046661,
+   "adv": 10021808,
+   "price": 124.69,
+   "shares_dated": "2025-10-28",
+   "pool": 965
+  },
+  {
+   "symbol": "NHI",
+   "cik": "0000877860",
+   "name": "National Health Investors, Inc.",
+   "market_cap": 3634341318,
+   "adv": 17174111,
+   "price": 76.29,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "TFSL",
+   "cik": "0001381668",
+   "name": "TFS FINANCIAL CORPORATION",
+   "market_cap": 3859460330,
+   "adv": 10392762,
+   "price": 13.75,
+   "shares_dated": "2025-08-05",
+   "pool": 965
+  },
+  {
+   "symbol": "FG",
+   "cik": "0001934850",
+   "name": "F&G Annuities & Life, Inc.",
+   "market_cap": 3934929067,
+   "adv": 19257141,
+   "price": 29.23,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "GBTG",
+   "cik": "0001820872",
+   "name": "Global Business Travel Group, Inc.",
+   "market_cap": 4224855893,
+   "adv": 14323960,
+   "price": 8.07,
+   "shares_dated": "2025-11-06",
+   "pool": 965
+  },
+  {
+   "symbol": "MZTI",
+   "cik": "0000057515",
+   "name": "The Marzetti Company",
+   "market_cap": 4459053780,
+   "adv": 25106485,
+   "price": 162.23,
+   "shares_dated": "2025-10-10",
+   "pool": 965
+  },
+  {
+   "symbol": "NJR",
+   "cik": "0000356309",
+   "name": "NEW JERSEY RESOURCES CORPORATION",
+   "market_cap": 4594645755,
+   "adv": 26942929,
+   "price": 45.74,
+   "shares_dated": "2025-08-01",
+   "pool": 965
+  },
+  {
+   "symbol": "RDN",
+   "cik": "0000890926",
+   "name": "Radian Group Inc",
+   "market_cap": 4919607732,
+   "adv": 29645083,
+   "price": 36.31,
+   "shares_dated": "2025-11-04",
+   "pool": 965
+  },
+  {
+   "symbol": "MCY",
+   "cik": "0000064996",
+   "name": "MERCURY GENERAL CORP",
+   "market_cap": 5013778516,
+   "adv": 18433888,
+   "price": 90.52,
+   "shares_dated": "2025-10-30",
+   "pool": 965
+  },
+  {
+   "symbol": "ACA",
+   "cik": "0001739445",
+   "name": "Arcosa, Inc.",
+   "market_cap": 5339041422,
+   "adv": 22763592,
+   "price": 108.86,
+   "shares_dated": "2025-10-15",
+   "pool": 965
+  },
+  {
+   "symbol": "SWX",
+   "cik": "0001692115",
+   "name": "Southwest Gas Holdings, Inc.",
+   "market_cap": 5739979437,
+   "adv": 31763970,
+   "price": 79.52,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "ACT",
+   "cik": "0001823529",
+   "name": "Enact Holdings, Inc.",
+   "market_cap": 5820593368,
+   "adv": 10223757,
+   "price": 40.31,
+   "shares_dated": "2025-11-03",
+   "pool": 965
+  },
+  {
+   "symbol": "GATX",
+   "cik": "0000040211",
+   "name": "GATX Corporation",
+   "market_cap": 6162891000,
+   "adv": 26203367,
+   "price": 172.63,
+   "shares_dated": "2025-09-30",
+   "pool": 965
+  },
+  {
+   "symbol": "LOAR",
+   "cik": "0002000178",
+   "name": "Loar Holdings Inc.",
+   "market_cap": 6579787262,
+   "adv": 43585173,
+   "price": 70.28,
+   "shares_dated": "2025-08-31",
+   "pool": 965
+  },
+  {
+   "symbol": "OTF",
+   "cik": "0001747777",
+   "name": "BLUE OWL TECHNOLOGY FINANCE CORP.",
+   "market_cap": 6879425863,
+   "adv": 21930138,
+   "price": 14.68,
+   "shares_dated": "2025-11-05",
+   "pool": 965
+  },
+  {
+   "symbol": "FCFS",
+   "cik": "0000840489",
+   "name": "FIRSTCASH HOLDINGS, INC.",
+   "market_cap": 7194749133,
+   "adv": 38046659,
+   "price": 163.02,
+   "shares_dated": "2025-10-29",
+   "pool": 965
+  },
+  {
+   "symbol": "BOKF",
+   "cik": "0000875357",
+   "name": "BOK FINANCIAL CORP",
+   "market_cap": 7651703842,
+   "adv": 32986304,
+   "price": 120.98,
+   "shares_dated": "2025-09-30",
+   "pool": 965
+  },
+  {
+   "symbol": "OTEX",
+   "cik": "0001002638",
+   "name": "OPEN TEXT CORP",
+   "market_cap": 8109716265,
+   "adv": 31748112,
+   "price": 32.18,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "SFD",
+   "cik": "0000091388",
+   "name": "SMITHFIELD FOODS, INC.",
+   "market_cap": 8530545829,
+   "adv": 18321873,
+   "price": 21.7,
+   "shares_dated": "2025-10-27",
+   "pool": 965
+  },
+  {
+   "symbol": "PPC",
+   "cik": "0000802481",
+   "name": "PILGRIM\u2019S PRIDE CORPORATION",
+   "market_cap": 9430633646,
+   "adv": 37536837,
+   "price": 39.7,
+   "shares_dated": "2025-10-29",
+   "pool": 965
+  },
+  {
+   "symbol": "DRS",
+   "cik": "0001833756",
+   "name": "Leonardo DRS, Inc.",
+   "market_cap": 9845649092,
+   "adv": 29270952,
+   "price": 37.01,
+   "shares_dated": "2025-10-28",
+   "pool": 965
+  },
+  {
+   "symbol": "PAG",
+   "cik": "0001019849",
+   "name": "Penske Automotive Group, Inc.",
+   "market_cap": 10589396576,
+   "adv": 39292958,
+   "price": 160.79,
+   "shares_dated": "2025-10-24",
+   "pool": 965
+  },
+  {
+   "symbol": "AFG",
+   "cik": "0001042046",
+   "name": "AMERICAN FINANCIAL GROUP, INC.",
+   "market_cap": 11312860506,
+   "adv": 51838121,
+   "price": 135.64,
+   "shares_dated": "2025-11-01",
+   "pool": 965
+  },
+  {
+   "symbol": "AIZ",
+   "cik": "0001267238",
+   "name": "Assurant, Inc.",
+   "market_cap": 12040500466,
+   "adv": 75555940,
+   "price": 240.42,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "CNA",
+   "cik": "0000021175",
+   "name": "CNA FINANCIAL CORPORATION",
+   "market_cap": 12840422745,
+   "adv": 23136831,
+   "price": 47.44,
+   "shares_dated": "2025-10-30",
+   "pool": 965
+  },
+  {
+   "symbol": "LECO",
+   "cik": "0000059527",
+   "name": "LINCOLN ELECTRIC HOLDINGS INC",
+   "market_cap": 13591465472,
+   "adv": 64603656,
+   "price": 247,
+   "shares_dated": "2025-09-30",
+   "pool": 965
+  },
+  {
+   "symbol": "LXP",
+   "cik": "0000910108",
+   "name": "LXP INDUSTRIAL TRUST",
+   "market_cap": 14674351502,
+   "adv": 31523472,
+   "price": 49.61,
+   "shares_dated": "2025-10-29",
+   "pool": 965
+  },
+  {
+   "symbol": "EWBC",
+   "cik": "0001069157",
+   "name": "EAST WEST BANCORP,\u00a0INC.",
+   "market_cap": 16008085025,
+   "adv": 75612232,
+   "price": 116.35,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  },
+  {
+   "symbol": "YUMC",
+   "cik": "0001673358",
+   "name": "Yum China Holdings, Inc.",
+   "market_cap": 16932490223,
+   "adv": 61005182,
+   "price": 46.85,
+   "shares_dated": "2025-11-04",
+   "pool": 965
+  },
+  {
+   "symbol": "RBA",
+   "cik": "0001046102",
+   "name": "RB Global, Inc",
+   "market_cap": 19443809529,
+   "adv": 102039291,
+   "price": 104.71,
+   "shares_dated": "2025-10-31",
+   "pool": 965
+  }
+ ]
+}

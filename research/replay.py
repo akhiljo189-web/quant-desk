@@ -27,9 +27,9 @@ orderings instead of a number.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
-from typing import Callable, Iterable, Optional, Sequence
+from typing import Callable, Iterable, Mapping, Optional, Sequence
 
 from qd.clock import CALENDAR, MarketCalendar, Phase, SimClock
 from qd.config import Mode, Settings
@@ -198,12 +198,30 @@ def run(
     return result
 
 
+def universe_at(
+    universes: Mapping[str, Sequence[str]], when: datetime
+) -> tuple[str, ...]:
+    """The universe that had already been SELECTED by `when`.
+
+    Keys are ISO selection dates. A later screen is not available to an earlier
+    fold, and reaching for one would put names in the universe because of how
+    they later turned out — the survivorship bias the point-in-time screen
+    exists to remove, reintroduced at the last step.
+    """
+    stamp = ensure_utc(when).date().isoformat()
+    eligible = [k for k in sorted(universes) if k <= stamp]
+    if not eligible:
+        return ()
+    return tuple(universes[eligible[-1]])
+
+
 def walk_forward(
     settings: Settings,
     dataset: ReplayDataset,
     start: datetime,
     end: datetime,
     folds: int = 4,
+    universes: Optional[Mapping[str, Sequence[str]]] = None,
     **kwargs,
 ) -> list[ReplayResult]:
     """Split the period into consecutive folds and replay each.
@@ -213,6 +231,14 @@ def walk_forward(
     period whose neighbours it was fitted to. Consecutive folds also answer the
     question that actually matters — does this survive a regime change, or does
     the whole result live in one lucky stretch?
+
+    With `universes`, each fold trades the universe that had been screened by
+    its own start date rather than one list stretched over the whole span. A
+    list fixed at the END of the period is a set of companies that were still
+    mid-cap, still liquid and still listed afterwards; a list fixed at the
+    start goes stale as names leave the band. Re-selecting per fold is what a
+    live system would do, and it is the only version of the run that the live
+    system could have reproduced.
     """
     start, end = ensure_utc(start), ensure_utc(end)
     span = (end - start) / folds
@@ -220,9 +246,20 @@ def walk_forward(
     for i in range(folds):
         f_start = start + span * i
         f_end = start + span * (i + 1)
+        s = settings
+        if universes:
+            symbols = universe_at(universes, f_start)
+            if symbols:
+                s = replace(settings,
+                            universe=replace(settings.universe, symbols=symbols))
+                logger.info("fold %d universe: %d names as screened by %s",
+                            i + 1, len(symbols), f_start.date())
+            else:
+                logger.warning("fold %d: nothing screened by %s — falling back "
+                               "to the configured list", i + 1, f_start.date())
         logger.info("fold %d/%d: %s -> %s", i + 1, folds, f_start.date(), f_end.date())
-        out.append(run(settings, dataset, f_start, f_end, **kwargs))
+        out.append(run(s, dataset, f_start, f_end, **kwargs))
     return out
 
 
-__all__ = ["ReplayResult", "run", "walk_forward"]
+__all__ = ["ReplayResult", "run", "walk_forward", "universe_at"]

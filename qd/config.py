@@ -535,6 +535,13 @@ class ProviderConfig:
     polygon_base: str = "https://api.polygon.io"
     finnhub_api_key: str = ""
     finnhub_base: str = "https://finnhub.io/api/v1"
+    # SEC EDGAR needs no key, but it does require a User-Agent naming the
+    # requester with a contact address — requests without one are refused.
+    # Deliberately EMPTY rather than a plausible placeholder: a default like
+    # "contact@example.com" would satisfy the format check and then point a
+    # government API at a fake address, which earns a block for everyone
+    # sharing the egress. Failing loudly at construction is the better error.
+    sec_user_agent: str = ""
     alpaca_key_id: str = ""
     alpaca_secret: str = ""
     alpaca_paper_base: str = "https://paper-api.alpaca.markets"
@@ -621,6 +628,7 @@ class Settings:
                 ProviderConfig(),
                 polygon_api_key=_env("POLYGON_API_KEY"),
                 finnhub_api_key=_env("FINNHUB_API_KEY"),
+                sec_user_agent=_env("SEC_USER_AGENT", ProviderConfig.sec_user_agent),
                 alpaca_key_id=_env("ALPACA_KEY_ID"),
                 alpaca_secret=_env("ALPACA_SECRET_KEY"),
                 cache_dir=_env("QD_CACHE_DIR", ProviderConfig.cache_dir),

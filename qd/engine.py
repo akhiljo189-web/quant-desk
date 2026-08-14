@@ -230,7 +230,13 @@ class Engine:
         if self._earnings_fetched and now - self._earnings_fetched < timedelta(hours=4):
             return
         try:
-            self._earnings = self.p.earnings.earnings(
+            # SUE when the provider offers it, so live and backtest measure
+            # surprise the SAME way. A live system scoring against consensus
+            # while the walk-forward scored against the company's own history
+            # is not the strategy that was tested.
+            fetch = getattr(self.p.earnings, "sue_earnings", None) \
+                or self.p.earnings.earnings
+            self._earnings = fetch(
                 list(self.states), now - timedelta(days=7), now + timedelta(days=21)
             )
             self._earnings_fetched = now

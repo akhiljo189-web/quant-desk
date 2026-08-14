@@ -360,7 +360,13 @@ class DatasetBuilder:
         # Earnings are fetched once for the whole universe, not per symbol.
         if spec.include_earnings and self.earnings is not None:
             try:
-                events = self.earnings.earnings(list(spec.symbols), start, end)
+                # Prefer the SUE path when the provider has one. The consensus
+                # endpoint returns four quarters, which across this universe
+                # cannot fill a walk-forward; the fallback exists for stub
+                # providers in tests and for adapters that only carry consensus.
+                fetch = getattr(self.earnings, "sue_earnings", None) \
+                    or self.earnings.earnings
+                events = fetch(list(spec.symbols), start, end)
                 n = _write_jsonl(
                     _path(self.root, "earnings"), events, earnings_to_dict
                 )

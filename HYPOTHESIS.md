@@ -174,6 +174,119 @@ not just its sign, and it is worth more than the headline expectancy number.
 
 ---
 
+## Amendment — 2026-08-14: the surprise measure
+
+The hypothesis is unchanged. The way the TRIGGER measures surprise has
+changed, and that is a material enough alteration to record here rather than
+edit quietly into the code. A pre-registration that can be revised whenever
+the data turns out inconvenient is decoration.
+
+**What forced it.** The plan was analyst-consensus surprise from Finnhub. Its
+free tier returns **four quarters**. Across a 35-name universe that is ~140
+earnings events before the regime filter, confluence rule and liquidity gates
+take their cut — against a gate demanding 200 out-of-sample trades. Any result
+from four quarters would be noise wearing a decimal point.
+
+**What replaced it.** Time-series SUE — standardised unexpected earnings — from
+SEC XBRL:
+
+    SUE = (EPS_q − EPS_{q−4}) / stdev(past seasonal differences)
+
+The expectation is the same quarter one year earlier (a seasonal random walk),
+and the scaling is the company's own history of surprises. Seven-plus years of
+EPS, free, from the source of record.
+
+**This is the original methodology, not a workaround.** Ball & Brown (1968) and
+Bernard & Thomas (1989) established PEAD using time-series SUE precisely
+because analyst forecasts were not broadly available. Drift is documented under
+both definitions.
+
+**But they are not the same measurement**, and the difference is worth stating:
+
+| | Consensus surprise | Time-series SUE |
+|---|---|---|
+| Expectation | what analysts predicted | the company's own seasonal trend |
+| Captures | information analysts hold | information history holds |
+| Blind to | history the analysts ignore | anything analysts knew that history did not |
+
+A company that grows steadily produces small time-series SUE and can still
+badly miss consensus. The two disagree most for names with heavy analyst
+coverage — which, by the hypothesis's own logic, are the names we care about
+least.
+
+**Validation, measured — 2026-08-14.** Sign agreement between time-series SUE
+and Finnhub consensus surprise, over 31 overlapping quarters across 12 names:
+
+| Both measures decisive above | Agreement |
+|---|---|
+| (all observations) | 20/31 = **65%** |
+| \|SUE\|>0.5 and \|consensus\|>2% | 10/15 = **67%** |
+| \|SUE\|>1.0 and \|consensus\|>5% | 9/14 = **64%** |
+
+**Agreement does not improve as both measures become decisive.** That is the
+result that matters. Had the disagreements been noise clustered near zero,
+filtering to confident readings would have pushed agreement sharply up; it is
+flat instead, so the two measures genuinely disagree about a third of the time
+even when both are sure.
+
+The cause is structural rather than a defect. Companies beat consensus roughly
+three times in four — guidance is managed downward into the print — so
+consensus surprise is systematically POSITIVE, while SUE is symmetric around
+zero by construction. Against those base rates, chance agreement is about 50%;
+65% is a positive but weak relationship, which is what two genuinely different
+measurements of the same event look like.
+
+**The consequence, stated before the result is known:** this is not "the same
+signal, free". We are testing a DIFFERENT strategy from the consensus-surprise
+version. If the walk-forward reports NO EDGE, that is evidence about
+time-series-SUE PEAD in mid-caps — it is **not** evidence that
+consensus-surprise PEAD fails, and it must not be reported as though it were.
+Conversely a positive result does not transfer to the consensus definition
+without re-testing.
+
+The implementation itself is not in doubt: the AAPL and TXRH figures reconcile
+against reported EPS once split adjustment and Q4 derivation are applied, and
+the three XBRL traps documented in `qd/providers/xbrl.py` were each found and
+fixed by this validation.
+
+**A correction to this amendment — the winsorizing claim was wrong.** The text
+above, and the code comment it described, said that capping SUE at ±4 defended
+against a one-off item contaminating the year-ago comparison. It does not, and
+the failure is arithmetic rather than a matter of tuning. A lone shock inflates
+the very denominator used to judge it: with *n* prior seasonal differences, a
+single outlier of **any** magnitude scores exactly `n/√(n−1)` — 3.6 at n=12,
+3.3 at n=20. It is always under the cap, whatever the writedown was. Multiply
+CROX's −8.82 by a hundred and the score does not move.
+
+So the cap fires on companies whose surprises are broadly volatile and never on
+the case it was written for. The artefact is now identified by its shape
+instead: an extreme seasonal difference of the **opposite sign exactly one year
+earlier** is the signature of a rebound off a one-off rather than an earnings
+surprise. Those readings are flagged and dropped from the trigger rather than
+merely sized down — they arrive wearing maximum conviction, which is the worst
+possible way to be wrong. Both behaviours are pinned by tests
+(`test_winsorizing_never_binds_on_a_lone_shock`,
+`test_a_rebound_off_a_one_off_is_flagged_contaminated`).
+
+The same pass found one real leak: prior differences were ordered by period
+END, but a derived Q4 carries its 10-K's filing date, so a quarter that ended
+earlier can enter the public record later. The scale now filters on filing
+date.
+
+**What this does not fix.** XBRL cannot look forward, so there is no scheduled
+earnings calendar. Backtests are unaffected — every filing is in the past — but
+the live "do not hold into a print" blackout falls back to estimating the next
+report from the company's filing cadence. That degradation is explicit in
+`qd/providers/edgar.py::estimate_next_report` and must be treated as an
+estimate: being early costs a skipped trade, being late means holding through
+a gap.
+
+**If the result is marginal or positive**, consensus surprise becomes worth
+$99/month — not as an upgrade taken on faith, but as a re-run over the
+overlapping years to measure whether the definition changes the answer.
+
+---
+
 ## Honest expected outcome
 
 **This will probably not clear the gate.** PEAD has decayed for forty years, is

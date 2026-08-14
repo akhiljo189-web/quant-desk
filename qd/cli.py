@@ -230,7 +230,7 @@ def cmd_run(args) -> int:
 
     from qd.engine import Engine
     from qd.providers.alpaca import AlpacaBroker
-    from qd.providers.finnhub import FinnhubEarnings
+    from qd.providers.earnings import EarningsProvider
     from qd.providers.polygon import PolygonProvider
 
     try:
@@ -239,10 +239,10 @@ def cmd_run(args) -> int:
         # The PEAD trigger's data source. Without it the strategy has no
         # trigger channel at all and would refuse every candidate, so this is
         # a hard dependency rather than an optional enrichment.
-        earnings = FinnhubEarnings(s.providers)
+        earnings = EarningsProvider(s.providers)
     except Exception as exc:
         print(f"could not reach providers: {exc}")
-        print("set POLYGON_API_KEY, FINNHUB_API_KEY, ALPACA_KEY_ID and "
+        print("set POLYGON_API_KEY, SEC_USER_AGENT, ALPACA_KEY_ID and "
               "ALPACA_SECRET_KEY (see .env.example)")
         return 1
 
@@ -276,7 +276,7 @@ def cmd_fetch(args) -> int:
     _log(args.verbose)
     from datetime import date as _date
 
-    from qd.providers.finnhub import FinnhubEarnings
+    from qd.providers.earnings import EarningsProvider
     from qd.providers.polygon import PolygonProvider
     from research.dataset import BuildSpec, DatasetBuilder, load, verify
 
@@ -288,10 +288,12 @@ def cmd_fetch(args) -> int:
 
     try:
         market = PolygonProvider(s.providers)
-        earnings = FinnhubEarnings(s.providers)
+        # SUE from SEC XBRL, timestamped by real 8-K acceptance. See
+        # providers/earnings.py::sue_earnings for why not the consensus feed.
+        earnings = EarningsProvider(s.providers)
     except Exception as exc:
         print(f"could not reach providers: {exc}")
-        print("set POLYGON_API_KEY and FINNHUB_API_KEY (see .env.example)")
+        print("set POLYGON_API_KEY and SEC_USER_AGENT (see .env.example)")
         return 1
 
     spec = BuildSpec(

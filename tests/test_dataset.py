@@ -18,6 +18,7 @@ import tempfile
 import unittest
 from datetime import date, datetime, timedelta
 
+from qd.config import Mode, Settings
 from qd.providers.replay import ReplayDataset
 from qd.types import (
     UTC, Bar, EarningsEvent, NewsItem, OptionContract, OptionTrade, Right,
@@ -320,3 +321,35 @@ class VerifyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AlignToArchiveTest(unittest.TestCase):
+    """Config says one bar interval, the archive holds another.
+
+    Not hypothetical: a 5-minute config pointed at a 60-minute archive made
+    every bar look 55 minutes overdue, the staleness watchdog halted every
+    entry for four years, and the run finished cleanly with zero trades — the
+    exact shape of a strategy that never triggers.
+    """
+
+    def test_the_archive_wins(self):
+        from research.dataset import Manifest, align_to_archive
+        s = Settings.load(Mode.REPLAY)
+        m = Manifest(spec={"bar_minutes": 60})
+        self.assertEqual(align_to_archive(s, m).market.bar_minutes, 60)
+
+    def test_a_matching_config_is_left_alone(self):
+        from research.dataset import Manifest, align_to_archive
+        s = Settings.load(Mode.REPLAY)
+        m = Manifest(spec={"bar_minutes": s.market.bar_minutes})
+        self.assertIs(align_to_archive(s, m), s)
+
+    def test_no_manifest_is_not_an_error(self):
+        from research.dataset import align_to_archive
+        s = Settings.load(Mode.REPLAY)
+        self.assertIs(align_to_archive(s, None), s)
+
+    def test_a_manifest_without_a_spec_is_not_an_error(self):
+        from research.dataset import Manifest, align_to_archive
+        s = Settings.load(Mode.REPLAY)
+        self.assertIs(align_to_archive(s, Manifest()), s)

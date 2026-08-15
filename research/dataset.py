@@ -496,6 +496,38 @@ def save(dataset: ReplayDataset, root: str, manifest: Optional[Manifest] = None)
     return manifest
 
 
+def align_to_archive(settings, manifest: Optional[Manifest]):
+    """Return `settings` with the bar interval taken from the archive.
+
+    THE MISMATCH THIS EXISTS TO PREVENT. `market.bar_minutes` is a live-trading
+    setting, but the replay reads it too — most importantly in the staleness
+    watchdog, which measures a bar's age from its CLOSE and so must know how
+    far apart bars are. Point a config that says 5 minutes at an archive built
+    with 60 and every bar looks 55 minutes overdue: the watchdog halts every
+    entry, for the whole run, and the run still finishes cleanly. No error, no
+    trades, and a result identical in shape to a strategy that never fires.
+
+    The archive is the authority here because it is the thing that actually
+    exists. Config is an intention; the bars on disk are a fact.
+    """
+    import dataclasses
+
+    if manifest is None:
+        return settings
+    archived = (manifest.spec or {}).get("bar_minutes")
+    if not archived or archived == settings.market.bar_minutes:
+        return settings
+    logger.warning(
+        "archive has %d-minute bars but config says %d — using the archive's. "
+        "A stale interval silently halts the staleness watchdog.",
+        archived, settings.market.bar_minutes,
+    )
+    return dataclasses.replace(
+        settings,
+        market=dataclasses.replace(settings.market, bar_minutes=int(archived)),
+    )
+
+
 def load(root: str) -> tuple[ReplayDataset, Optional[Manifest]]:
     """Read an archive back into a ReplayDataset.
 
@@ -641,6 +673,7 @@ def verify(
 
 
 __all__ = [
+    "align_to_archive",
     "BuildSpec", "Manifest", "DatasetBuilder", "VerifyReport",
     "save", "load", "verify", "SCHEMA_VERSION",
     "bar_to_dict", "bar_from_dict", "news_to_dict", "news_from_dict",

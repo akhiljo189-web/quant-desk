@@ -130,13 +130,16 @@ def _dataset_for(args, s):
     import dataclasses
 
     if getattr(args, "archive", None):
-        from research.dataset import load, verify
+        from research.dataset import align_to_archive, load, verify
 
         ds, manifest = load(args.archive)
         report = verify(ds)
         if not report.ok:
             print(report.explain())
             raise SystemExit("archive failed verification — refusing to replay it")
+        # The archive's bar interval, not the config's. A mismatch halts the
+        # staleness watchdog for the entire run and reports zero trades.
+        s = align_to_archive(s, manifest)
         symbols = tuple(sorted(set(ds.daily) - {s.context.market_symbol}))
         if args.symbols:
             wanted = {x.strip().upper() for x in args.symbols.split(",") if x.strip()}

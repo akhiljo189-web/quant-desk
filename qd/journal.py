@@ -55,7 +55,16 @@ class Journal:
         self.path = path
         self.echo = echo
         self._lock = threading.Lock()
+        self._silent: dict[str, int] = {}
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+
+    def flush_rollup(self) -> None:
+        """Write the tally of absorbed empty assessments, if any."""
+        if not self._silent:
+            return
+        counts, self._silent = self._silent, {}
+        self.write("assessment_rollup", counts=counts,
+                   total=sum(counts.values()))
 
     def write(self, kind: str, **fields: Any) -> None:
         record = {"ts": utcnow().isoformat(), "kind": kind, **fields}
@@ -69,8 +78,32 @@ class Journal:
 
     # ── typed helpers ────────────────────────────────────────────────────────
 
+    # How many uninformative assessments to absorb before writing a rollup.
+    # Small enough that an interrupted run loses almost nothing, large enough
+    # that the file stays readable.
+    ROLLUP_EVERY = 500
+
     def assessment(self, a, taken: bool, blocked: str = "") -> None:
-        """Every symbol looked at, traded or not."""
+        """Every symbol looked at, traded or not.
+
+        Except the empty case. A symbol with NO evidence at all on a given
+        cycle produces the same record every cycle — "no PEAD trigger" — and
+        there are 135 symbols and thousands of cycles per run. Writing each one
+        produced a 178 MB journal in twelve minutes and made the evaluation I/O
+        bound on recording that nothing happened.
+
+        The count still matters (`blocked_reasons` is the most useful query in
+        the file: if one reason dominates, that gate is the real strategy), so
+        the empty case is tallied and flushed periodically as a rollup instead
+        of dropped.
+        """
+        if not taken and not a.live_evidence:
+            reason = blocked or a.blocked or "no evidence"
+            self._silent[reason] = self._silent.get(reason, 0) + 1
+            if sum(self._silent.values()) >= self.ROLLUP_EVERY:
+                self.flush_rollup()
+            return
+
         self.write(
             "assessment",
             symbol=a.symbol,
@@ -182,12 +215,23 @@ class Journal:
         is the system's real strategy — everything else is decoration.
         """
         counts: dict[str, int] = {}
-        for rec in self.read(["assessment"]):
+
+        def add(reason: str, n: int = 1) -> None:
+            head = reason.split("(")[0].split(":")[0].strip()
+            counts[head] = counts.get(head, 0) + n
+
+        for rec in self.read(["assessment", "assessment_rollup"]):
+            if rec.get("kind") == "assessment_rollup":
+                # Empty assessments absorbed rather than written one by one.
+                for reason, n in (rec.get("counts") or {}).items():
+                    add(reason, int(n))
+                continue
             if rec.get("taken"):
                 continue
-            reason = rec.get("blocked") or "unknown"
-            head = reason.split("(")[0].split(":")[0].strip()
-            counts[head] = counts.get(head, 0) + 1
+            add(rec.get("blocked") or "unknown")
+        # Anything tallied since the last flush is still only in memory.
+        for reason, n in self._silent.items():
+            add(reason, n)
         return dict(sorted(counts.items(), key=lambda kv: -kv[1]))
 
 

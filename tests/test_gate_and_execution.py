@@ -258,3 +258,71 @@ class SimBrokerTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class JournalRollupTest(unittest.TestCase):
+    """The journal must stay a record of decisions, not of their absence.
+
+    135 symbols x thousands of cycles, almost all with no evidence at all,
+    produced a 178 MB journal in twelve minutes and made the evaluation I/O
+    bound on writing down that nothing happened. The counts still matter, so
+    they are tallied rather than dropped.
+    """
+
+    class _Assessment:
+        symbol = "TEST"
+        trigger_score = 0.0
+        conviction = 0.0
+        direction = None
+        agreeing_sources = 0
+        opposing_weight = 0.0
+        veto_score = 0.0
+        per_source: dict = {}
+        live_evidence: tuple = ()
+        blocked = "no PEAD trigger"
+
+    def journal(self):
+        import tempfile, os
+        from qd.journal import Journal
+        fd, path = tempfile.mkstemp(suffix=".jsonl")
+        os.close(fd)
+        self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
+        return Journal(path), path
+
+    def test_empty_assessments_are_not_written_one_by_one(self):
+        j, path = self.journal()
+        for _ in range(50):
+            j.assessment(self._Assessment(), taken=False)
+        with open(path) as fh:
+            self.assertEqual(fh.read().strip(), "", "empty assessments were written")
+
+    def test_the_count_survives_in_the_rollup(self):
+        j, path = self.journal()
+        for _ in range(50):
+            j.assessment(self._Assessment(), taken=False)
+        j.flush_rollup()
+        self.assertEqual(j.blocked_reasons().get("no PEAD trigger"), 50)
+
+    def test_unflushed_counts_are_still_reported(self):
+        """A run that ends mid-tally must not under-report its own gates."""
+        j, _ = self.journal()
+        for _ in range(7):
+            j.assessment(self._Assessment(), taken=False)
+        self.assertEqual(j.blocked_reasons().get("no PEAD trigger"), 7)
+
+    def test_an_assessment_with_evidence_is_still_written_in_full(self):
+        """Suppression must not reach anything that explains a decision."""
+        from qd.types import Evidence, Source
+        from datetime import datetime, timedelta, timezone
+        a = self._Assessment()
+        a.live_evidence = (Evidence(
+            symbol="TEST", source=Source.EARNINGS, kind="pead", score=0.8,
+            confidence=0.9, observed_at=datetime(2026, 1, 5, tzinfo=timezone.utc),
+            ttl=timedelta(days=3),
+        ),)
+        j, path = self.journal()
+        j.assessment(a, taken=False, blocked="conviction below minimum")
+        with open(path) as fh:
+            body = fh.read()
+        self.assertIn("conviction below minimum", body)
+        self.assertIn("pead", body)

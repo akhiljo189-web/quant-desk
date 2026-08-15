@@ -123,13 +123,22 @@ def run(
     equity: float = 100_000.0,
     cost_mult: float = 1.0,
     ordering: Ordering = "worst",
-    step: timedelta = timedelta(minutes=5),
+    step: Optional[timedelta] = None,
     journal_path: str = "data/replay_journal.jsonl",
     cal: MarketCalendar = CALENDAR,
     progress: Optional[Callable[[datetime], None]] = None,
 ) -> ReplayResult:
-    """Replay `dataset` between `start` and `end`."""
+    """Replay `dataset` between `start` and `end`.
+
+    `step` defaults to the configured bar interval, which is the only value
+    that is not simply wrong. Stepping finer than the data exists re-runs the
+    identical decision on the identical inputs — a 5-minute step against hourly
+    bars did twelve times the work for twelve times the journal and not one
+    extra decision. Stepping coarser skips bars entirely.
+    """
     start, end = ensure_utc(start), ensure_utc(end)
+    if step is None:
+        step = timedelta(minutes=settings.market.bar_minutes)
     clock = SimClock(start)
 
     # strict=False: the engine legitimately asks for data "up to now" with an
@@ -194,6 +203,7 @@ def run(
             result.trades.append(trade)
 
     result.ambiguous_bars = broker.ambiguous_bars
+    journal.flush_rollup()          # absorbed empty assessments belong on disk
     result.blocked.update(journal.blocked_reasons())
     return result
 

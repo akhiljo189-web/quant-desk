@@ -27,6 +27,7 @@ orderings instead of a number.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Callable, Iterable, Mapping, Optional, Sequence
@@ -148,7 +149,7 @@ def run(
     broker = SimBroker(equity, settings.execution, cost_mult=cost_mult, ordering=ordering)
 
     portfolio = Portfolio(equity, settings.risk, settings.universe, cal)
-    journal = Journal(journal_path)
+    journal = Journal(journal_path, fresh=True)
     providers = Providers(
         market=provider, broker=broker, news=provider,
         earnings=provider, options=provider,
@@ -275,6 +276,11 @@ def walk_forward(
     start, end = ensure_utc(start), ensure_utc(end)
     span = (end - start) / folds
     out: list[ReplayResult] = []
+    # Each fold writes its own journal. One shared file would make fold N's
+    # blocked_reasons include folds 1..N-1 — the diagnostics stop being
+    # per-fold at all.
+    journal_path = kwargs.pop("journal_path", "data/replay_journal.jsonl")
+    j_base, j_ext = os.path.splitext(journal_path)
     for i in range(folds):
         f_start = start + span * i
         f_end = start + span * (i + 1)
@@ -290,7 +296,9 @@ def walk_forward(
                 logger.warning("fold %d: nothing screened by %s — falling back "
                                "to the configured list", i + 1, f_start.date())
         logger.info("fold %d/%d: %s -> %s", i + 1, folds, f_start.date(), f_end.date())
-        out.append(run(s, dataset, f_start, f_end, **kwargs))
+        out.append(run(s, dataset, f_start, f_end,
+                       journal_path=f"{j_base}.fold{i + 1}{j_ext}",
+                       **kwargs))
     return out
 
 

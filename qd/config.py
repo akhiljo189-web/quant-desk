@@ -191,12 +191,16 @@ class UniverseConfig:
     universe where the registered hypothesis predicts nothing. Testing there
     would disconfirm by construction (HYPOTHESIS.md, "the tension").
 
-    ⚠ The list below is a STATIC SNAPSHOT of liquid US mid-caps (~$2–20B) as of
-    this commit, and it decays: caps drift across the band, names get acquired,
-    and a hand-maintained list quietly accumulates survivorship. Before any
-    real run — and periodically after — regenerate it from a screener (market
-    cap $2–20B, ADV > $10M, optionable, primary US listing) rather than
-    editing it by feel. The structural commitment is the BAND, not the names.
+    ⚠ The list below is a FALLBACK, not the universe. The real universe comes
+    from `research/screen.py` — a point-in-time screen (cap $2–20B from XBRL
+    share counts × unadjusted close, ADV > $10M from grouped bars, common
+    stock only, turnover-capped, stratified across the band) — stored in
+    `research/universes/annual.json`. The walk-forward gives each fold the
+    screen dated before its start; `qd run` trades the latest screen and
+    refuses one older than ~13 months. This static list is what remains when
+    no screen file exists, and it carries all the survivorship a hand-picked
+    list always carries. The structural commitment is the BAND and the
+    selection rule, never the names.
 
     Liquidity filters still do more work than any signal. Illiquid names show
     the prettiest backtests — huge percentage moves, apparently clean trends —

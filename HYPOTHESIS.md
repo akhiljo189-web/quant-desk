@@ -153,7 +153,7 @@ not "we are faster".
 | Decision | Value | Why the hypothesis forces it | Enforced |
 |---|---|---|---|
 | Horizon | 2–10 day hold | drift plays out over days; intraday bars measure noise | `max_hold=8d` unconditional, `time_stop=3d` for flat trades |
-| Universe | 30–50 mid-caps | where coverage is thin enough for drift to survive | 35-name $2–20B list in `UniverseConfig` (a snapshot — regenerate from a screener) |
+| Universe | 30–50 mid-caps | where coverage is thin enough for drift to survive | annual point-in-time screens in `research/universes/annual.json` (built by `research/screen.py`); each walk-forward fold trades the screen dated before its own start, and live runs refuse a screen older than ~13 months |
 | Trigger | earnings surprise + confirmation | the event IS the hypothesis | `trigger_sources=(EARNINGS,)`, required; sign sets direction |
 | News role | veto / classification only | cannot win the speed race; can avoid a known-bad hold | only opposing news readings are consulted; agreement is discarded |
 | Flow role | confirmation only | already arbitraged at the horizons it is visible on | confirms scale conviction, capped at the trigger's strength |

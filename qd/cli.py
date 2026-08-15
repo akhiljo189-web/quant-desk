@@ -194,15 +194,57 @@ def cmd_replay(args) -> int:
     return 0
 
 
+def _screened_universes(args, s):
+    """Load the annual point-in-time screens, and their sector map.
+
+    Defaults to research/universes/annual.json when it exists, because the
+    honest evaluation must be the DEFAULT, not something a careful caller
+    remembers to ask for. Without these each fold trades whatever symbol list
+    the settings carry — for an archive that is every name it holds, which is
+    the union of every screen, which is survivorship look-ahead.
+
+    Returns (universes-or-None, settings). Sectors merge into the settings so
+    screened names do not all collapse into one "unknown" bucket and jam the
+    correlated-exposure cap.
+    """
+    import dataclasses
+    import json
+    import os
+
+    path = getattr(args, "universes", None) or "research/universes/annual.json"
+    if not os.path.exists(path):
+        if getattr(args, "universes", None):
+            raise SystemExit(f"universes file not found: {path}")
+        return None, s
+
+    with open(path) as fh:
+        raw = json.load(fh)
+    universes = {k: [c["symbol"] for c in v] for k, v in raw.items()}
+
+    sectors_path = os.path.join(os.path.dirname(path), "sectors.json")
+    if os.path.exists(sectors_path):
+        with open(sectors_path) as fh:
+            sectors = json.load(fh)
+        s = dataclasses.replace(s, universe=dataclasses.replace(
+            s.universe, sectors={**dict(s.universe.sectors), **sectors},
+        ))
+
+    print(f"  universes: {len(universes)} annual screens from {path}")
+    return universes, s
+
+
 def cmd_evaluate(args) -> int:
     _log(args.verbose)
     from research.evaluate import evaluate
 
     s = Settings.load(Mode.REPLAY)
     ds, s, start, end = _dataset_for(args, s)
+    universes, s = _screened_universes(args, s) if getattr(args, "archive", None) \
+        else (None, s)
     print()
 
-    ev = evaluate(s, ds, start, end, equity=args.equity, folds=args.folds)
+    ev = evaluate(s, ds, start, end, equity=args.equity, folds=args.folds,
+                  universes=universes)
     print(ev.report())
 
     if ev.has_edge and args.write_proof:
@@ -216,6 +258,41 @@ def cmd_evaluate(args) -> int:
 def cmd_run(args) -> int:
     _log(args.verbose)
     s = Settings.load(Mode.LIVE if args.live else Mode.PAPER)
+
+    # Trade the latest point-in-time screen, not the static config list. The
+    # walk-forward measured the screened universes; a live run on a different
+    # symbol list is running a strategy nobody evaluated. The screen decays —
+    # names drift out of the cap band — so an old one is refused rather than
+    # quietly traded.
+    import json as _json
+    import os as _os
+    from datetime import date as _date
+
+    upath = "research/universes/annual.json"
+    if _os.path.exists(upath):
+        import dataclasses as _dc
+
+        with open(upath) as fh:
+            raw = _json.load(fh)
+        latest = max(raw)
+        age_days = (_date.today() - _date.fromisoformat(latest)).days
+        if age_days > 400:
+            print(f"refusing to start — newest universe screen is {latest} "
+                  f"({age_days}d old). Re-run research/screen.py first.")
+            return 1
+        symbols = tuple(c["symbol"] for c in raw[latest])
+        sectors = dict(s.universe.sectors)
+        spath = _os.path.join(_os.path.dirname(upath), "sectors.json")
+        if _os.path.exists(spath):
+            with open(spath) as fh:
+                sectors.update(_json.load(fh))
+        s = _dc.replace(s, universe=_dc.replace(
+            s.universe, symbols=symbols, sectors=sectors,
+        ))
+        print(f"universe: {len(symbols)} names from the {latest} screen")
+    else:
+        print(f"universe: configured list ({len(s.universe.symbols)} names) — "
+              f"no {upath}; the screened universe is what was evaluated")
 
     problems = validate_config(s.risk)
     if problems:
@@ -417,6 +494,9 @@ def main(argv=None) -> int:
     sp.add_argument("--equity", type=float, default=100_000.0)
     sp.add_argument("--folds", type=int, default=4)
     sp.add_argument("--seed", type=int, default=7)
+    sp.add_argument("--universes", default=None,
+                    help="annual point-in-time screens (default: "
+                         "research/universes/annual.json when present)")
     sp.add_argument("--write-proof", action="store_true")
     sp.set_defaults(func=cmd_evaluate)
 

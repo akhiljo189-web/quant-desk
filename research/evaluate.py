@@ -39,7 +39,7 @@ import math
 import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Mapping, Optional, Sequence
 
 from qd.config import Settings
 from qd.gate import EdgeProof, FoldResult, Requirements, DEFAULT_REQUIREMENTS
@@ -166,6 +166,42 @@ class Evaluation:
         return dataclasses.replace(proof, content_hash=proof.compute_hash())
 
 
+def combine(folds: Sequence[ReplayResult]) -> ReplayResult:
+    """Merge per-fold results into one span-wide result.
+
+    Trades, cycles, ambiguity and blocked-counts concatenate. The equity curve
+    is stitched MULTIPLICATIVELY: every fold restarts at the same starting
+    equity, and read literally that erases each fold's outcome from the next
+    fold's drawdown — two successive losing folds would each look like a fresh
+    start. Scaling each fold's curve to begin where the previous one ended
+    makes the drawdown of the combined curve mean what it appears to mean.
+
+    Dollar P&L is left as the raw per-fold sum (it is only ever reported as a
+    total); expectancy and profit factor are per-trade and unaffected.
+    """
+    out = ReplayResult()
+    if not folds:
+        return out
+    out.cost_mult = folds[0].cost_mult
+    out.ordering = folds[0].ordering
+    out.start = min(f.start for f in folds if f.start)
+    out.end = max(f.end for f in folds if f.end)
+
+    level: Optional[float] = None
+    for f in folds:
+        out.trades.extend(f.trades)
+        out.cycles += f.cycles
+        out.ambiguous_bars += f.ambiguous_bars
+        for reason, n in f.blocked.items():
+            out.blocked[reason] = out.blocked.get(reason, 0) + n
+        if f.equity_curve:
+            first = f.equity_curve[0][1]
+            factor = 1.0 if (level is None or first <= 0) else level / first
+            out.equity_curve.extend((ts, eq * factor) for ts, eq in f.equity_curve)
+            level = out.equity_curve[-1][1]
+    return out
+
+
 def evaluate(
     settings: Settings,
     dataset: ReplayDataset,
@@ -174,30 +210,51 @@ def evaluate(
     equity: float = 100_000.0,
     folds: int = 4,
     req: Requirements = DEFAULT_REQUIREMENTS,
+    universes: Optional[Mapping[str, Sequence[str]]] = None,
 ) -> Evaluation:
-    """Full evaluation: cost sweep, ordering band, walk-forward, verdict."""
-    logger.info("evaluating %s .. %s", start.date(), end.date())
+    """Full evaluation: cost sweep, ordering band, walk-forward, verdict.
+
+    EVERY measurement here is built fold-wise, with each fold trading the
+    universe screened by its own start date (`universes`, as produced by
+    research/screen.py). This is not an implementation detail — it is the
+    difference between a result and a leak. A single full-span run cannot
+    re-screen its universe mid-run, so its universe is either the UNION of
+    every screen (names selected with knowledge of how they later turned out
+    — survivorship look-ahead) or frozen at the start (stale within a year).
+    The first full evaluation ever run on this repo made the union mistake,
+    and this structure exists so it cannot be made again.
+
+    With `universes=None` every fold trades the configured universe, which is
+    correct for synthetic data and the null-hypothesis test.
+    """
+    logger.info("evaluating %s .. %s (fold-wise)", start.date(), end.date())
 
     sweep = CostSweep()
+    per_mult: dict[float, list[ReplayResult]] = {}
     for mult in settings.execution.cost_stress_mults:
-        sweep.results[mult] = run(
-            settings, dataset, start, end, equity=equity, cost_mult=mult,
-            ordering="worst", journal_path=f"data/replay_cost{mult}.jsonl",
+        per_mult[mult] = walk_forward(
+            settings, dataset, start, end, folds=folds, universes=universes,
+            equity=equity, cost_mult=mult, ordering="worst",
+            journal_path=f"data/replay_cost{mult}.jsonl",
         )
+        sweep.results[mult] = combine(per_mult[mult])
         logger.info("  cost %.1fx: %s", mult, sweep.results[mult].summary())
 
     base = sweep.results.get(1.0) or next(iter(sweep.results.values()))
 
-    optimistic = run(
-        settings, dataset, start, end, equity=equity,
-        cost_mult=base.cost_mult, ordering="optimistic",
+    optimistic = combine(walk_forward(
+        settings, dataset, start, end, folds=folds, universes=universes,
+        equity=equity, cost_mult=base.cost_mult, ordering="optimistic",
         journal_path="data/replay_optimistic.jsonl",
-    )
+    ))
     band = (base.expectancy_r(), optimistic.expectancy_r())
 
-    fold_results = walk_forward(
-        settings, dataset, start, end, folds=folds, equity=equity,
-        cost_mult=req.stress_cost_mult, ordering="worst",
+    # Fold consistency is judged at the stress multiplier. Those runs already
+    # exist inside the sweep whenever the multiplier is swept — reuse them
+    # rather than replaying a third of the evaluation.
+    fold_results = per_mult.get(req.stress_cost_mult) or walk_forward(
+        settings, dataset, start, end, folds=folds, universes=universes,
+        equity=equity, cost_mult=req.stress_cost_mult, ordering="worst",
         journal_path="data/replay_folds.jsonl",
     )
 
@@ -278,4 +335,4 @@ def _judge(
     return "EDGE", reasons
 
 
-__all__ = ["evaluate", "Evaluation", "CostSweep"]
+__all__ = ["evaluate", "combine", "Evaluation", "CostSweep"]

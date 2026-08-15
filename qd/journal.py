@@ -51,12 +51,21 @@ def _encode(obj: Any) -> Any:
 class Journal:
     """Append-only decision log."""
 
-    def __init__(self, path: str, echo: bool = False) -> None:
+    def __init__(self, path: str, echo: bool = False, fresh: bool = False) -> None:
+        """`fresh` truncates an existing file at the path.
+
+        For replay journals ONLY — they are per-run artefacts, and appending
+        across runs means every rerun inherits the previous run's counts
+        through `blocked_reasons`. The live journal must never set this: it is
+        the audit trail, and an audit trail that truncates is not one.
+        """
         self.path = path
         self.echo = echo
         self._lock = threading.Lock()
         self._silent: dict[str, int] = {}
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        if fresh and os.path.exists(path):
+            open(path, "w").close()
 
     def flush_rollup(self) -> None:
         """Write the tally of absorbed empty assessments, if any."""

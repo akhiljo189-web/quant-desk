@@ -305,6 +305,84 @@ overlapping years to measure whether the definition changes the answer.
 
 ---
 
+## RESULT — 2026-08-15: NO EDGE
+
+Measured. 229 trades, 2022-04-01 to 2026-08-01, 135 names across five annual
+point-in-time screens, hourly bars, each walk-forward fold trading only the
+universe screened before its own start.
+
+| | |
+|---|---|
+| Expectancy | **+0.0160R** |
+| Profit factor | 1.039 (gate requires ≥ 1.15) |
+| Win rate | 49.3% |
+| t-statistic | **0.24** |
+| Max drawdown | 5.6% |
+
+    cost   expectancy      PF
+    1.0x     +0.0160R   1.039
+    1.5x     +0.0091R   1.019
+    2.0x     +0.0034R   0.999
+
+    fold 1  2022-04..2023-05  n=51  +0.1045R  PF 1.369
+    fold 2  2023-05..2024-05  n=60  +0.1175R  PF 1.287
+    fold 3  2024-05..2025-07  n=51  +0.0474R  PF 1.146
+    fold 4  2025-07..2026-08  n=67  -0.2093R  PF 0.594
+
+**The verdict is NO EDGE and the honest reading is weaker than that.** The gate
+failed it on profit factor alone, but the number that matters is the
+t-statistic: **0.24**. Expectancy is positive and completely indistinguishable
+from zero. At 2x costs the profit factor is 0.999 — the entire measured effect
+is precisely the width of the spread, which is what "the edge is inside the
+costs" looks like when you can see it in one line.
+
+**Three of four folds are positive, and that is not encouraging.** Fold 4
+(-0.209R, PF 0.594) is not noise around a positive mean; it is the most recent
+year and it is worse than every year before it. Read in order, the folds decay
+monotonically: +0.105, +0.118, +0.047, -0.209. If anything survived here, it
+stopped surviving most recently.
+
+**The structural prediction FAILED, and this is the finding worth keeping.**
+This document predicted, before the test, that drift should weaken
+monotonically with market cap — the whole persistence argument rests on thin
+coverage being the binding constraint. Measured by cap tercile:
+
+| Tercile | Range | n | Expectancy |
+|---|---|---|---|
+| Small | $2.0–3.9B | 74 | **−0.124R** |
+| Mid | $3.9–7.8B | 74 | **+0.221R** |
+| Large | $8.1–18.7B | 75 | **−0.100R** |
+
+Not monotonic. Inverted-U, with everything concentrated in a middle band and
+both tails negative. The registered falsification condition was explicit: if
+the drift does not weaken with coverage, "the hypothesis is wrong and the
+result is a data artefact". One tercile of 74 trades carrying the entire
+result, flanked by negatives, is the signature of noise finding a bucket — not
+of a mechanism.
+
+**What this result is evidence about.** Time-series-SUE PEAD in liquid mid-caps
+over 2022–2026, entered the day after the release, held 2–8 days, net of a
+retail cost model. It is **not** evidence about consensus-surprise PEAD (see
+the amendment above — the two measures agree only ~65% of the time), nor about
+longer horizons, nor about small caps below the tradeable liquidity floor.
+
+**What would be needed to revisit it.** Not a parameter search — that is how a
++0.016R coin flip becomes a backtested strategy. Only a different *measurement*
+would be informative: consensus surprise over the same years (~$99/month,
+pre-registered above as the one paid follow-up worth making), or a longer
+history than the data plan reaches. Both answer a question this run could not.
+
+**Corrections applied before this number was trusted.** The first three
+evaluations produced −0.158R, −0.233R and −0.246R and every one of them was
+wrong: a union universe (survivorship look-ahead), 42% of trades missing from
+the result, partial takes liquidating whole positions, R collapsing to zero on
+any trade that moved its stop to breakeven, and banked partial profit missing
+from the ledger. Each is documented in the commit history with a test. The
+corrections moved the headline by roughly +0.26R — which is a useful measure of
+how much a plausible-looking backtest can be worth before it is audited.
+
+---
+
 ## Honest expected outcome
 
 **This will probably not clear the gate.** PEAD has decayed for forty years, is

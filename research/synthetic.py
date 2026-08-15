@@ -60,12 +60,24 @@ class SyntheticSpec:
     end: date
     seed: int = 42
     start_price: float = 100.0
-    annual_vol: float = 0.35
-    bar_minutes: int = 5
+    # Calibrated to the MID-CAP universe the config now describes, at the
+    # HOURLY interval the system evaluates on. 0.35 annual vol on 5-minute
+    # bars produced ~0.4% bar-ATR against a 0.8% floor: every synthetic
+    # replay was rejected by is_tradeable before its first assessment, and
+    # the null-hypothesis test spent months proving that zero trades is not
+    # an edge — vacuously true and testing nothing.
+    annual_vol: float = 0.70
+    bar_minutes: int = 60
     news_per_day: float = 0.4          # expected headlines per symbol per day
     earnings_every_days: int = 90
     option_trades_per_day: int = 40
     drift: float = 0.0                 # zero: no free directional edge
+    # The regime layer needs the market index AND 60 daily bars before it will
+    # classify anything; without both it returns UNKNOWN and the strategy
+    # refuses every candidate. Generating neither is why synthetic replays
+    # produced zero trades for months while the null-hypothesis test passed
+    # by asserting that nothing has no edge.
+    market_symbol: str = "SPY"
 
 
 def _session_times(d: date, minutes: int, cal: MarketCalendar) -> list[tuple[datetime, datetime]]:
@@ -88,9 +100,17 @@ def generate(spec: SyntheticSpec, cal: MarketCalendar = CALENDAR) -> ReplayDatas
     ds = ReplayDataset()
     days = cal.trading_days_between(spec.start, spec.end)
 
-    for si, sym in enumerate(spec.symbols):
+    # The market index is generated too. The regime layer classifies against
+    # it, and a missing index means MarketContext.market is permanently
+    # UNKNOWN, which blocks every entry regardless of signal.
+    names = list(spec.symbols)
+    if spec.market_symbol and spec.market_symbol not in names:
+        names.append(spec.market_symbol)
+
+    for si, sym in enumerate(names):
         price = spec.start_price * (1.0 + 0.1 * si)
-        per_bar_vol = spec.annual_vol / math.sqrt(252 * 78)   # 78 five-min bars/day
+        bars_per_day = max(1, int(390 / spec.bar_minutes))
+        per_bar_vol = spec.annual_vol / math.sqrt(252 * bars_per_day)
         base_volume = 200_000 + si * 50_000
 
         for d in days:
@@ -109,7 +129,7 @@ def generate(spec: SyntheticSpec, cal: MarketCalendar = CALENDAR) -> ReplayDatas
                 vol = max(1000.0, rng.gauss(base_volume * shape / len(slots),
                                             base_volume * 0.15 / len(slots)))
 
-                ret = rng.gauss(spec.drift / (252 * 78), per_bar_vol)
+                ret = rng.gauss(spec.drift / (252 * bars_per_day), per_bar_vol)
                 o = price
                 c = max(0.5, o * (1.0 + ret))
                 wick = abs(rng.gauss(0, per_bar_vol * 0.6)) * o
@@ -194,7 +214,11 @@ def generate(spec: SyntheticSpec, cal: MarketCalendar = CALENDAR) -> ReplayDatas
                 # The schedule is public well in advance; the numbers are not.
                 scheduled_known_at=release - timedelta(days=21),
                 eps_estimate=est,
-                eps_actual=round(est * (1 + rng.gauss(0, 0.12)), 2),
+                # Big enough that some surprises clear the trigger floor.
+                # The null property lives in the PRICES being independent of
+                # the events, not in the events being too small to act on —
+                # events nobody trades test nothing.
+                eps_actual=round(est * (1 + rng.gauss(0, 0.35)), 2),
                 revenue_estimate=1_000_000_000.0,
                 revenue_actual=1_000_000_000.0 * (1 + rng.gauss(0, 0.03)),
                 released_at=release,

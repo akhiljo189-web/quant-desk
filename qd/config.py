@@ -275,11 +275,18 @@ class UniverseConfig:
 
 @dataclass(frozen=True)
 class MarketConfig:
+    # THE BAR INTERVAL IS PART OF THE STRATEGY, not a data plumbing detail.
+    # ATR bands, stop distances (and so position sizes), RVOL and the
+    # staleness tolerance all take their meaning from it. The evaluation runs
+    # on hourly bars; live must match, or it trades different thresholds than
+    # were measured — at 5 minutes the 0.8% ATR floor rejects every mid-cap
+    # every cycle, silently, which looks exactly like a signal that never
+    # fires. Replays override this from the archive manifest either way.
+    bar_minutes: int = 60
     atr_period: int = 14
     rvol_lookback_days: int = 20
     trend_fast: int = 20
     trend_slow: int = 50
-    bar_minutes: int = 5
     min_bars_for_signal: int = 30
     rvol_significant: float = 2.0     # maps to a ~0.76 score through squash()
     gap_significant_pct: float = 2.0

@@ -232,6 +232,13 @@ class SimBroker:
 
         requested = getattr(self, "_close_requests", {}).pop(symbol, "none")
         if requested != "none":
+            # Honour the requested QUANTITY. Ignoring it turned every partial
+            # take into a full liquidation one bar later: the engine banked
+            # 25% and expected the rest to ride to the target or the drift
+            # window, and the sim sold everything — 2 target exits in 230
+            # trades across the first full evaluation. None means close all.
+            if requested is not None and 0 < requested < pos.quantity:
+                return [self._partial_exit(pos, float(requested), bar.close, bar.end)]
             return [self._exit(pos, bar.close, bar.end, "manual")]
 
         long = pos.side is Side.BUY
@@ -263,6 +270,27 @@ class SimBroker:
             return [self._exit(pos, px, bar.end, "target")]
 
         return []
+
+    def _partial_exit(
+        self, pos: Position, quantity: float, raw_price: float, ts: datetime,
+    ) -> SimFillEvent:
+        """Close part of a position; the remainder keeps working its bracket.
+
+        P&L is proportional to the closed quantity — the full-position
+        `unrealized` would credit shares that are still open.
+        """
+        px = self._exit_cost(raw_price, pos.side)
+        fees = self._fees(px, quantity, pos.side.opposite)
+        per_share = (px - pos.entry_price) * pos.side.sign
+        pnl = per_share * quantity - fees
+        self._cash += pnl
+        self._equity += pnl
+        pos.quantity -= quantity
+        return SimFillEvent(
+            symbol=pos.symbol, side=pos.side.opposite, quantity=quantity,
+            price=px, ts=ts, kind="partial", slippage=abs(px - raw_price),
+            cost=fees,
+        )
 
     def _exit(
         self, pos: Position, raw_price: float, ts: datetime, kind: str,

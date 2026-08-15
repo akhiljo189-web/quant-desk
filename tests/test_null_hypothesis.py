@@ -176,20 +176,42 @@ class EndToEndNullTest(unittest.TestCase):
         from research.synthetic import SyntheticSpec, generate
 
         s = Settings.load(Mode.REPLAY)
+        # Thresholds are relaxed ON PURPOSE, and it makes the test stronger,
+        # not weaker: the null property lives in the PRICES being independent
+        # of the events, so the more the pipeline trades this data, the harder
+        # the claim it is testing. At production thresholds the pipeline
+        # traded synthetic data zero times for months — the test asserted
+        # that no trades have no edge, which is true of a switched-off
+        # machine. See the trades>0 assertion below.
         s = dataclasses.replace(
-            s, universe=dataclasses.replace(s.universe, symbols=("AAPL", "MSFT"))
+            s,
+            universe=dataclasses.replace(s.universe, symbols=("AAPL", "MSFT")),
+            strategy=dataclasses.replace(s.strategy, min_trigger_score=0.05,
+                                         min_sources=1, min_conviction=0.05),
+            earnings=dataclasses.replace(s.earnings, min_confidence=0.1),
         )
+        # Generation starts months before the replay window: the regime layer
+        # needs 60 daily bars before it classifies anything, and a market index
+        # to classify against. Missing either was the real reason this test
+        # was vacuous.
         ds = generate(SyntheticSpec(
             symbols=("AAPL", "MSFT"),
-            start=date(2026, 3, 2), end=date(2026, 3, 20),
+            start=date(2025, 9, 1), end=date(2026, 4, 10),
             seed=5, earnings_every_days=10,
         ))
         r = replay.run(
             s, ds,
-            datetime(2026, 3, 2, 14, 30, tzinfo=UTC),
-            datetime(2026, 3, 20, 20, 0, tzinfo=UTC),
+            datetime(2026, 1, 5, 14, 30, tzinfo=UTC),
+            datetime(2026, 4, 10, 20, 0, tzinfo=UTC),
             journal_path="data/test_null_journal.jsonl",
         )
+        # A null test with zero trades is not a null test. Audit found this
+        # vacuous for months: the synthetic data was quietly rejected by the
+        # is_tradeable ATR floor before a single assessment, and "no trades
+        # has no edge" passed while testing nothing.
+        self.assertGreater(r.count, 0,
+                           "the pipeline never traded the synthetic data — "
+                           "the null test is vacuous again")
         # On structureless data the confluence requirement should keep the
         # system out. If this ever starts trading heavily and profitably, the
         # generator has acquired structure or the strategy has acquired a leak.

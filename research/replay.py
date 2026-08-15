@@ -192,10 +192,12 @@ def run(
                 i += 1
             while i < len(bars) and bars[i].known_at <= now:
                 for ev in broker.on_bar(sym, bars[i]):
-                    if ev.kind != "entry":
+                    # A partial fill is not a closed trade: the engine already
+                    # reduced the position's quantity, and portfolio.close here
+                    # would liquidate the remainder's bookkeeping.
+                    if ev.kind not in ("entry", "partial"):
                         trade = portfolio.close(sym, ev.price, ev.ts, ev.kind)
                         if trade:
-                            result.trades.append(trade)
                             journal.exit(trade)
                 i += 1
             cursors[sym] = i
@@ -221,9 +223,17 @@ def run(
         st = engine.states.get(pos.symbol)
         mark = st.snapshot.last if st and st.snapshot else pos.entry_price
         broker.force_close(pos.symbol, mark, end, "replay_end")
-        trade = portfolio.close(pos.symbol, mark, end, "replay_end")
-        if trade:
-            result.trades.append(trade)
+        portfolio.close(pos.symbol, mark, end, "replay_end")
+
+    # The portfolio's ledger is the ONLY complete record of closed trades.
+    # Collecting from fill events alone missed every exit the ENGINE initiates
+    # -- time stops, drift-window-over, veto exits: 97 of 230 in the first
+    # full evaluation -- and the bias is not random. Time stops exist to cut
+    # FLAT trades, so a result built from bar-triggered fills is weighted
+    # toward stopped-out losers: it read -0.16R where the full ledger read
+    # +0.01R. Pessimistic is the lucky direction for a bug to point, but a
+    # coin that only lands one way is still broken.
+    result.trades = list(portfolio.closed)
 
     result.ambiguous_bars = broker.ambiguous_bars
     journal.flush_rollup()          # absorbed empty assessments belong on disk

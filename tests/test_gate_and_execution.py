@@ -260,6 +260,67 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class PartialCloseTest(unittest.TestCase):
+    """close_position(symbol, qty) must close QTY, not everything.
+
+    Found by audit, reconciling the first evaluation's exit mix: 2 target
+    exits in 230, because _manage_open ignored the requested quantity and
+    liquidated the whole position as "manual" one bar after every partial
+    take. The engine banks 25%% and expects the rest to ride to the target or
+    the drift-window exit; the sim sold it all. The strategy that was
+    measured was not the strategy that was designed.
+    """
+
+    def setUp(self):
+        self.cfg = ExecutionConfig()
+        self.broker = SimBroker(100_000.0, self.cfg, cost_mult=1.0, ordering="worst")
+        self.broker.submit(Order("NVDA", Side.BUY, 100, 90.0, 130.0, "qd-p1"))
+        self.broker.on_bar("NVDA", bar("NVDA", NOW, 100.0, 100.5, 99.8, 100.2))
+
+    def next_bar(self, offset_min=5, o=101.0, h=101.5, l=100.5, c=101.0):
+        return bar("NVDA", NOW + timedelta(minutes=offset_min), o, h, l, c)
+
+    def test_a_partial_close_leaves_the_rest_working(self):
+        self.broker.close_position("NVDA", 25)
+        events = self.broker.on_bar("NVDA", self.next_bar())
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].kind, "partial")
+        self.assertEqual(events[0].quantity, 25)
+        pos = self.broker._positions.get("NVDA")
+        self.assertIsNotNone(pos, "the whole position was liquidated")
+        self.assertEqual(pos.quantity, 75)
+
+    def test_the_remainder_can_still_hit_the_target(self):
+        self.broker.close_position("NVDA", 25)
+        self.broker.on_bar("NVDA", self.next_bar())
+        events = self.broker.on_bar("NVDA", self.next_bar(10, 129.0, 131.0, 128.5, 130.5))
+        self.assertEqual(events[0].kind, "target")
+        self.assertEqual(events[0].quantity, 75)
+
+    def test_a_full_close_request_is_still_a_full_close(self):
+        self.broker.close_position("NVDA")
+        events = self.broker.on_bar("NVDA", self.next_bar())
+        self.assertEqual(events[0].kind, "manual")
+        self.assertEqual(events[0].quantity, 100)
+        self.assertIsNone(self.broker._positions.get("NVDA"))
+
+    def test_requesting_more_than_held_closes_what_is_held(self):
+        self.broker.close_position("NVDA", 500)
+        events = self.broker.on_bar("NVDA", self.next_bar())
+        self.assertEqual(events[0].kind, "manual")
+        self.assertEqual(events[0].quantity, 100)
+
+    def test_partial_pnl_is_proportional(self):
+        eq_before = self.broker.equity
+        self.broker.close_position("NVDA", 50)
+        ev = self.broker.on_bar("NVDA", self.next_bar())[0]
+        # 50 shares closed ~1 point above entry: equity moves by roughly half
+        # of what a full close would credit, never the full amount.
+        gain = self.broker.equity - eq_before
+        self.assertGreater(gain, 0)
+        self.assertLess(gain, 50 * 1.6)
+
+
 class JournalRollupTest(unittest.TestCase):
     """The journal must stay a record of decisions, not of their absence.
 

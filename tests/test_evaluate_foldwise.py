@@ -186,3 +186,70 @@ class FreshJournalTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResultCollectsEveryExitTest(unittest.TestCase):
+    """ReplayResult must contain EVERY closed trade, whoever closed it.
+
+    Found reconciling the first honest evaluation against its own journals:
+    the result held 137 trades at -0.16R while the journals held 230 exits
+    averaging +0.01R. run() collected only what the fill loop saw — bar-
+    triggered stops and targets, plus the end-of-run flatten. The exits the
+    ENGINE initiates (time stops, drift-window-over, veto exits: 97 of 230)
+    never reached the result.
+
+    The bias is not random. Time stops exist to cut FLAT trades before they
+    decay, so excluding them leaves a result weighted toward stopped-out
+    losers. The headline expectancy was an artefact of which exits got
+    counted, in the pessimistic direction — which is the lucky direction, but
+    a coin that only lands one way is still broken.
+    """
+
+    def test_journal_exits_are_a_subset_of_result_trades(self):
+        import json
+        import tempfile
+        from datetime import date
+
+        from qd.config import Mode, Settings
+        from research import replay
+        from research.synthetic import SyntheticSpec, generate
+
+        s = Settings.load(Mode.REPLAY)
+        import dataclasses
+        # Entry thresholds are relaxed because this test is about exit
+        # COLLECTION, not selectivity — it needs positions to exist so the
+        # engine's own exits (time stops, drift-window-over) can fire.
+        s = dataclasses.replace(
+            s,
+            universe=dataclasses.replace(s.universe, symbols=("AAPL", "MSFT")),
+            strategy=dataclasses.replace(s.strategy, min_trigger_score=0.05,
+                                         min_sources=1, min_conviction=0.05),
+            earnings=dataclasses.replace(s.earnings, min_confidence=0.1),
+        )
+        # Generation starts months before the replay window: the regime layer
+        # needs 60 daily bars before it will classify anything.
+        ds = generate(SyntheticSpec(
+            symbols=("AAPL", "MSFT"),
+            start=date(2025, 9, 1), end=date(2026, 4, 10),
+            seed=5, earnings_every_days=10,
+        ))
+        path = os.path.join(tempfile.mkdtemp(), "exits.jsonl")
+        r = replay.run(s, ds, ts("2026-01-05T00:00:00"), ts("2026-04-10T00:00:00"),
+                       journal_path=path)
+
+        journal_exits = 0
+        with open(path) as fh:
+            for line in fh:
+                try:
+                    if json.loads(line).get("kind") == "exit":
+                        journal_exits += 1
+                except Exception:
+                    pass
+
+        self.assertGreater(journal_exits, 0, "scenario produced no exits at all")
+        # The result may hold MORE than the journal (end-of-run flattens are
+        # not journalled) but never fewer: a journalled exit is a real closed
+        # trade, and a result that misses real trades is measuring a subset.
+        self.assertGreaterEqual(r.count, journal_exits,
+                                f"result has {r.count} trades but the journal "
+                                f"recorded {journal_exits} exits")

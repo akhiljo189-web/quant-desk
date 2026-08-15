@@ -165,3 +165,58 @@ class EvidenceDecayTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KeyCacheTest(unittest.TestCase):
+    """The cached-key path must be indistinguishable from the naive one.
+
+    Caching sits directly on the look-ahead choke point, which is the one place
+    in the repository where an optimisation that is subtly wrong produces
+    better results rather than worse ones — and so invites no suspicion.
+    """
+
+    def dataset(self):
+        from qd.providers.replay import ReplayDataset
+        ds = ReplayDataset()
+        ds.add_bars("AAA", [
+            Bar(symbol="AAA",
+                start=datetime(2026, 3, 10, 14, 0, tzinfo=UTC) + timedelta(hours=i),
+                end=datetime(2026, 3, 10, 15, 0, tzinfo=UTC) + timedelta(hours=i),
+                open=10.0, high=11.0, low=9.0, close=10.5, volume=1000)
+            for i in range(6)
+        ])
+        return ds
+
+    def test_cached_and_uncached_agree_at_every_instant(self):
+        from qd.clock import SimClock
+        from qd.providers.replay import ReplayProvider, _visible
+        ds = self.dataset()
+        clock = SimClock(datetime(2026, 3, 10, 14, 0, tzinfo=UTC))
+        p = ReplayProvider(ds, clock, strict=False)
+        series = ds.bars["AAA"]
+        for i in range(14):
+            now = datetime(2026, 3, 10, 14, 0, tzinfo=UTC) + timedelta(minutes=30 * i)
+            self.assertEqual(list(p._vis(series, now)), list(_visible(series, now)))
+
+    def test_the_cache_does_not_leak_between_series(self):
+        from qd.clock import SimClock
+        from qd.providers.replay import ReplayProvider
+        ds = self.dataset()
+        ds.add_bars("BBB", [
+            Bar(symbol="BBB", start=datetime(2026, 3, 11, 14, 0, tzinfo=UTC),
+                end=datetime(2026, 3, 11, 15, 0, tzinfo=UTC),
+                open=1.0, high=1.0, low=1.0, close=1.0, volume=1)
+        ])
+        p = ReplayProvider(ds, SimClock(datetime(2026, 3, 10, 20, 0, tzinfo=UTC)),
+                           strict=False)
+        now = datetime(2026, 3, 10, 20, 0, tzinfo=UTC)
+        self.assertTrue(p._vis(ds.bars["AAA"], now))
+        self.assertEqual(list(p._vis(ds.bars["BBB"], now)), [])
+
+    def test_an_empty_series_is_handled(self):
+        from qd.clock import SimClock
+        from qd.providers.replay import ReplayProvider
+        p = ReplayProvider(self.dataset(),
+                           SimClock(datetime(2026, 3, 10, 20, 0, tzinfo=UTC)),
+                           strict=False)
+        self.assertEqual(list(p._vis([], datetime(2026, 3, 10, 20, 0, tzinfo=UTC))), [])

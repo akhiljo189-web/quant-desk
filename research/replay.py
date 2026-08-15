@@ -158,6 +158,17 @@ def run(
     result = ReplayResult(start=start, end=end, cost_mult=cost_mult, ordering=ordering)
     result.equity_curve.append((start, equity))
 
+    # A cursor per symbol into its bar list. `now` only ever moves forward, so
+    # each bar needs looking at exactly once across the whole run. Rescanning
+    # every symbol's full history on every step is the same answer computed
+    # again — 46 billion bar comparisons over four years at hourly resolution,
+    # which is where the run time went, not the strategy.
+    cursors: dict[str, int] = {sym: 0 for sym in engine.states}
+    sorted_bars: dict[str, list[Bar]] = {
+        sym: sorted(dataset.bars.get(sym, []), key=lambda b: b.known_at)
+        for sym in engine.states
+    }
+
     now = start
     while now < end:
         clock.set(now)
@@ -166,16 +177,27 @@ def run(
         # just closed may have taken out a stop, and the engine must see that
         # position as closed rather than reasoning about a position the market
         # already took away.
-        for sym, state in engine.states.items():
-            bars = dataset.bars.get(sym, [])
-            for bar in bars:
-                if now - step < bar.known_at <= now:
-                    for ev in broker.on_bar(sym, bar):
-                        if ev.kind != "entry":
-                            trade = portfolio.close(sym, ev.price, ev.ts, ev.kind)
-                            if trade:
-                                result.trades.append(trade)
-                                journal.exit(trade)
+        for sym in engine.states:
+            bars = sorted_bars.get(sym)
+            if bars is None:        # symbol appeared after startup
+                bars = sorted_bars[sym] = sorted(
+                    dataset.bars.get(sym, []), key=lambda b: b.known_at
+                )
+                cursors[sym] = 0
+            i = cursors[sym]
+            # Skip anything already behind the window; it was handled on an
+            # earlier step, or precedes the run entirely.
+            while i < len(bars) and bars[i].known_at <= now - step:
+                i += 1
+            while i < len(bars) and bars[i].known_at <= now:
+                for ev in broker.on_bar(sym, bars[i]):
+                    if ev.kind != "entry":
+                        trade = portfolio.close(sym, ev.price, ev.ts, ev.kind)
+                        if trade:
+                            result.trades.append(trade)
+                            journal.exit(trade)
+                i += 1
+            cursors[sym] = i
 
         try:
             report = engine.cycle()

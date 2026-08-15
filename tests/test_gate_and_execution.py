@@ -310,11 +310,29 @@ class JournalRollupTest(unittest.TestCase):
             j.assessment(self._Assessment(), taken=False)
         self.assertEqual(j.blocked_reasons().get("no PEAD trigger"), 7)
 
-    def test_an_assessment_with_evidence_is_still_written_in_full(self):
+    def test_market_evidence_alone_is_still_absorbed(self):
+        """Suppressing only the no-evidence case absorbs almost nothing —
+        market structure produces evidence nearly every cycle, while the
+        trigger stays silent."""
+        from qd.types import Evidence, Source
+        from datetime import datetime, timedelta, timezone
+        a = self._Assessment()
+        a.live_evidence = (Evidence(
+            symbol="TEST", source=Source.MARKET, kind="trend", score=0.4,
+            confidence=0.6, observed_at=datetime(2026, 1, 5, tzinfo=timezone.utc),
+            ttl=timedelta(hours=4),
+        ),)
+        j, path = self.journal()
+        j.assessment(a, taken=False)
+        with open(path) as fh:
+            self.assertEqual(fh.read().strip(), "")
+
+    def test_a_live_trigger_is_still_written_in_full(self):
         """Suppression must not reach anything that explains a decision."""
         from qd.types import Evidence, Source
         from datetime import datetime, timedelta, timezone
         a = self._Assessment()
+        a.trigger_score = 0.62
         a.live_evidence = (Evidence(
             symbol="TEST", source=Source.EARNINGS, kind="pead", score=0.8,
             confidence=0.9, observed_at=datetime(2026, 1, 5, tzinfo=timezone.utc),

@@ -86,18 +86,24 @@ class Journal:
     def assessment(self, a, taken: bool, blocked: str = "") -> None:
         """Every symbol looked at, traded or not.
 
-        Except the empty case. A symbol with NO evidence at all on a given
-        cycle produces the same record every cycle — "no PEAD trigger" — and
-        there are 135 symbols and thousands of cycles per run. Writing each one
-        produced a 178 MB journal in twelve minutes and made the evaluation I/O
-        bound on recording that nothing happened.
+        Except when the TRIGGER is silent. The hypothesis requires earnings
+        evidence, so with no trigger the outcome is settled before any other
+        channel is consulted — the record is identical every cycle and says
+        only that this symbol had no earnings event, which the calendar already
+        tells us. At 135 symbols across four years that is the overwhelming
+        majority of assessments: 178 MB in twelve minutes, and an evaluation
+        spending its time recording that nothing had happened.
+
+        Suppressing on "no evidence at all" instead is not enough — market
+        structure produces evidence on nearly every cycle, so almost nothing
+        would be absorbed.
 
         The count still matters (`blocked_reasons` is the most useful query in
-        the file: if one reason dominates, that gate is the real strategy), so
-        the empty case is tallied and flushed periodically as a rollup instead
-        of dropped.
+        the file: if one gate dominates, that gate is the real strategy), so
+        these are tallied and flushed periodically as a rollup rather than
+        dropped. Anything with a live trigger is written in full.
         """
-        if not taken and not a.live_evidence:
+        if not taken and not a.trigger_score:
             reason = blocked or a.blocked or "no evidence"
             self._silent[reason] = self._silent.get(reason, 0) + 1
             if sum(self._silent.values()) >= self.ROLLUP_EVERY:

@@ -43,13 +43,15 @@ class _NullProvider:
     def replace_stop(self, sym, px): return False
 
 
-def engine_with(feed_delay: timedelta, bar_age: timedelta) -> Engine:
+def engine_with(feed_delay: timedelta, bar_age: timedelta,
+                bar_minutes: int = 5) -> Engine:
     """An engine whose only symbol has a snapshot `bar_age` old."""
     s = Settings.load(Mode.REPLAY)
     s = dataclasses.replace(
         s,
         universe=dataclasses.replace(s.universe, symbols=("AAPL",)),
         providers=dataclasses.replace(s.providers, feed_delay=feed_delay),
+        market=dataclasses.replace(s.market, bar_minutes=bar_minutes),
     )
     null = _NullProvider()
     eng = Engine(
@@ -76,24 +78,54 @@ class DelayedFeedTest(unittest.TestCase):
         eng = engine_with(timedelta(minutes=15), timedelta(minutes=16))
         self.assertIsNone(eng.staleness(NOW))
 
-    def test_realtime_feed_still_halts_promptly(self):
-        """With no declared delay the watchdog keeps its original sensitivity."""
-        eng = engine_with(timedelta(0), timedelta(minutes=6))
-        self.assertIsNotNone(eng.staleness(NOW))
+    def test_realtime_feed_halts_sooner_than_a_delayed_one(self):
+        """Sensitivity is relative, and that is the property worth pinning.
+
+        An absolute threshold here would be re-derived every time the tolerance
+        formula changes — as it has twice. What must stay true is that a
+        real-time feed is held to a tighter standard than a delayed one, so an
+        age the delayed tier tolerates halts the real-time tier.
+        """
+        age = timedelta(minutes=12)                 # 5-min bars, no delay: > 5+0+5
+        self.assertIsNotNone(engine_with(timedelta(0), age).staleness(NOW))
+        self.assertIsNone(engine_with(timedelta(minutes=15), age).staleness(NOW))
 
     def test_genuinely_dead_delayed_feed_still_halts(self):
-        """Tolerance is delay + max_bar_age, not infinity. A feed that stopped
-        an hour ago is dead on any tier."""
-        eng = engine_with(timedelta(minutes=15), timedelta(minutes=60))
+        """Tolerance is bounded, not infinite. A feed that stopped two hours
+        ago is dead on any tier."""
+        eng = engine_with(timedelta(minutes=15), timedelta(minutes=120))
         reason = eng.staleness(NOW)
         self.assertIsNotNone(reason)
         self.assertIn("stale", reason)
 
-    def test_tolerance_is_delay_plus_max_bar_age(self):
+    def test_tolerance_is_bar_interval_plus_delay_plus_max_bar_age(self):
         delay, s = timedelta(minutes=15), Settings.load(Mode.REPLAY)
-        tolerance = delay + s.risk.max_bar_age          # 15 + 5 = 20 minutes
+        # 5-minute bars: 5 + 15 + 5 = 25 minutes
+        tolerance = timedelta(minutes=5) + delay + s.risk.max_bar_age
         self.assertIsNone(engine_with(delay, tolerance - timedelta(minutes=1)).staleness(NOW))
         self.assertIsNotNone(engine_with(delay, tolerance + timedelta(minutes=1)).staleness(NOW))
+
+    def test_hourly_bars_are_not_stale_at_fifty_nine_minutes(self):
+        """THE regression test for the second time this watchdog halted
+        everything.
+
+        A bar's age is measured from its CLOSE, so on 60-minute bars the newest
+        one is up to an hour old the instant before the next closes. That is the
+        sampling interval, not a dead feed. Reading it as staleness halted every
+        entry across a four-year backtest — a run that produces no trades and no
+        error, and looks exactly like a strategy that never triggers.
+        """
+        eng = engine_with(timedelta(0), timedelta(minutes=59), bar_minutes=60)
+        self.assertIsNone(eng.staleness(NOW))
+
+    def test_hourly_bars_still_halt_when_the_feed_really_stops(self):
+        """Scaling the tolerance to the interval must not disable the check."""
+        eng = engine_with(timedelta(0), timedelta(minutes=90), bar_minutes=60)
+        self.assertIsNotNone(eng.staleness(NOW))
+
+    def test_daily_bars_scale_too(self):
+        eng = engine_with(timedelta(0), timedelta(hours=20), bar_minutes=1440)
+        self.assertIsNone(eng.staleness(NOW))
 
     def test_no_data_at_all_is_always_stale(self):
         eng = engine_with(timedelta(minutes=15), timedelta(minutes=1))

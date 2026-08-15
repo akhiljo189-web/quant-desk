@@ -428,9 +428,11 @@ class DatasetBuilder:
                 existing.add(w)
 
         add(
-            "SURVIVORSHIP: the universe was chosen from names existing at build "
-            "time, so delisted, acquired and collapsed companies are absent. "
-            "Results are optimistic by an unmeasured amount."
+            "SURVIVORSHIP (NARROWED, NOT REMOVED): the universe comes from "
+            "point-in-time screens, so names that were mid-cap and liquid THEN "
+            "are included even if they later delisted. What remains invisible "
+            "is anything that disappeared before the archive's first session — "
+            "the data plan's history is the floor. Still optimistic, by less."
         )
         if manifest.adjusted_prices:
             add(
@@ -440,13 +442,22 @@ class DatasetBuilder:
                 "applied to prices nobody could have quoted."
             )
         add(
-            f"EARNINGS SCHEDULE: scheduled_known_at assumes "
-            f"{manifest.schedule_lead_days}d of lead time; Finnhub does not "
-            f"report announcement dates."
+            f"EARNINGS SCHEDULE: release INSTANTS are real — SEC item-2.02 8-K "
+            f"acceptance times, to the second. What is assumed is when the "
+            f"schedule became knowable: the prior quarter's release, falling "
+            f"back to {manifest.schedule_lead_days}d. That drives the blackout, "
+            f"not the signal."
         )
         add(
-            "RESTATEMENTS: earnings actuals are today's values, not necessarily "
-            "the figures first printed."
+            "SURPRISE DEFINITION: time-series SUE against the company's own "
+            "seasonal history, not analyst consensus. The two agree about 65% "
+            "of the time and disagree even when both are decisive, so a verdict "
+            "here is a verdict about SUE-PEAD (HYPOTHESIS.md)."
+        )
+        add(
+            "NEWS COVERAGE: the veto channel reads a vendor archive with its own "
+            "gaps. Missing news removes vetoes, and removing vetoes only ever "
+            "ADDS trades that should not have been taken."
         )
 
 

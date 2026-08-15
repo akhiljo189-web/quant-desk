@@ -306,15 +306,28 @@ class Engine:
         if self.cal.phase(now) is not Phase.REGULAR:
             return None
 
-        # The feed's own known delay is added to the tolerance rather than
-        # baked into a hand-widened threshold. On a 15-minute delayed tier the
-        # newest bar is ALWAYS ~15 minutes old, which a naive check reads as a
-        # dead feed — halting every entry permanently, silently, and in a way
-        # indistinguishable from a signal that simply never fires. Adding the
-        # delay keeps the watchdog's sensitivity intact: it still catches a
-        # feed that has genuinely stopped, just max_bar_age after it stops
-        # rather than immediately.
-        tolerance = self.s.risk.max_bar_age + self.s.providers.feed_delay
+        # Tolerance is built from the two things that make a fresh bar look old
+        # before anything is wrong, plus the actual alarm threshold.
+        #
+        # THE SAMPLING INTERVAL. A bar's age is measured from its CLOSE, so on
+        # 60-minute bars the newest one is a minute short of an hour old in the
+        # instant before the next closes. That is the interval, not a fault.
+        # Omitting it halted every entry across a four-year backtest, and the
+        # run still completed — no error, no trades, indistinguishable from a
+        # strategy that simply never triggers.
+        #
+        # THE FEED'S DELAY. On a 15-minute delayed tier the newest bar is
+        # ALWAYS ~15 minutes old, which a naive check reads as a dead feed.
+        #
+        # What is left, max_bar_age, keeps its intended meaning: how far past
+        # the next expected bar to wait before calling the feed dead. The
+        # watchdog's sensitivity is intact on every interval — it still fires
+        # max_bar_age after a feed genuinely stops.
+        tolerance = (
+            timedelta(minutes=self.s.market.bar_minutes)
+            + self.s.providers.feed_delay
+            + self.s.risk.max_bar_age
+        )
 
         # Just after the open no bar has closed yet, so the newest one is
         # yesterday's and legitimately hours old. Flagging that as a broken

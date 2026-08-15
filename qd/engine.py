@@ -390,7 +390,10 @@ class Engine:
                 if qty >= 1:
                     self.p.broker.close_position(pos.symbol, qty)
                     pos.partial_taken = True
-                    pos.quantity -= qty
+                    # Through the portfolio, so the banked profit lands in the
+                    # trade's own result rather than only in broker equity.
+                    # take_partial reduces pos.quantity itself.
+                    self.portfolio.take_partial(pos.symbol, qty, mark, now)
                     self.journal.event(
                         "partial take", symbol=pos.symbol, quantity=qty,
                         r_multiple=round(r, 3),

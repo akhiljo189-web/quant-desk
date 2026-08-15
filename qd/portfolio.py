@@ -111,6 +111,33 @@ class Portfolio:
             pos.stop_price, pos.open_risk, pos.sector,
         )
 
+    def take_partial(
+        self, symbol: str, quantity: float, price: float, when: datetime
+    ) -> Optional[float]:
+        """Bank part of a position, keeping its contribution to the trade.
+
+        The engine closes half at +1R and lets the rest run. That banked half
+        reached broker equity but never reached the trade ledger, so a third
+        of the sample was reported with its best-performing half deleted — the
+        ClosedTrade described only what the REMAINDER did.
+
+        Returns the realised P&L, or None if there is no such position.
+        """
+        pos = self._positions.get(symbol)
+        if pos is None or quantity <= 0:
+            return None
+        quantity = min(quantity, pos.quantity)
+        pnl = (price - pos.entry_price) * quantity * pos.side.sign
+        # Fraction of the ORIGINAL position, so the R contributions of the
+        # banked and remaining halves sum to one trade's worth.
+        fraction = quantity / pos.original_quantity if pos.original_quantity else 0.0
+        pos.realized_pnl += pnl
+        pos.realized_r += fraction * pos.r_multiple(price)
+        pos.quantity -= quantity
+        self._record_pnl(pnl)
+        logger.info("PARTIAL %s %.0f @ %.4f pnl=$%.2f", symbol, quantity, price, pnl)
+        return pnl
+
     def close(
         self, symbol: str, exit_price: float, when: datetime, reason: str = ""
     ) -> Optional[ClosedTrade]:
@@ -119,11 +146,18 @@ class Portfolio:
             return None
         when = ensure_utc(when)
         pnl = pos.unrealized(exit_price)
+        # The trade is the WHOLE position's life: anything banked earlier plus
+        # what the remainder did, each weighted by the share of the original
+        # size it represented.
+        remaining = (pos.quantity / pos.original_quantity
+                     if pos.original_quantity else 1.0)
+        r_total = pos.realized_r + remaining * pos.r_multiple(exit_price)
         trade = ClosedTrade(
             symbol=symbol, side=pos.side, quantity=pos.quantity,
             entry_price=pos.entry_price, exit_price=exit_price,
-            opened_at=pos.opened_at, closed_at=when, pnl=pnl,
-            r_multiple=pos.r_multiple(exit_price), reason=reason, sector=pos.sector,
+            opened_at=pos.opened_at, closed_at=when,
+            pnl=pnl + pos.realized_pnl,
+            r_multiple=r_total, reason=reason, sector=pos.sector,
         )
         self.closed.append(trade)
         self._record_pnl(pnl)

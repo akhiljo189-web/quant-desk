@@ -601,9 +601,21 @@ class Position:
     partial_taken: bool = False
     stop_moved_to_breakeven: bool = False
     opened_session: Optional[str] = None   # trading-day key, for the PDT rule
+    # The stop distance AT ENTRY, frozen. Captured on construction because the
+    # live stop moves and R must not move with it.
+    entry_risk_per_share: float = 0.0
+    # Size at entry, and what partial takes have already banked. `quantity`
+    # shrinks as partials fill; these keep the trade's full life recoverable.
+    original_quantity: float = 0.0
+    realized_pnl: float = 0.0
+    realized_r: float = 0.0
 
     def __post_init__(self) -> None:
         self.opened_at = ensure_utc(self.opened_at)
+        if not self.entry_risk_per_share:
+            self.entry_risk_per_share = abs(self.entry_price - self.stop_price)
+        if not self.original_quantity:
+            self.original_quantity = abs(self.quantity)
 
     @property
     def notional(self) -> float:
@@ -611,21 +623,47 @@ class Position:
 
     @property
     def risk_per_share(self) -> float:
+        """Distance to the CURRENT stop — a live exposure measure.
+
+        Not the R yardstick; see `initial_risk_per_share`.
+        """
         return abs(self.entry_price - self.stop_price)
+
+    @property
+    def initial_risk_per_share(self) -> float:
+        """The risk taken AT ENTRY. This is what one R means, permanently.
+
+        Measuring R against the live stop looks equivalent and is not. Moving
+        the stop to breakeven after a partial take — which this strategy does
+        by design — drives the distance to zero, and `r_multiple` then reports
+        0.0 for a trade that is winning. In the first corrected evaluation
+        that zeroed the R of every trade good enough to bank a partial; and
+        because `win_rate` counts `r > 0`, those same winners were then
+        counted as losses. Expectancy and win rate were both dragged down by
+        exactly the trades that worked.
+
+        Trailing a stop into profit is the mirror failure: it shrinks the
+        denominator and inflates R.
+        """
+        return self.entry_risk_per_share
 
     @property
     def open_risk(self) -> float:
         """Cash lost if the stop fills at its price. Slippage makes the real
-        number worse; this is the planned floor, not a guarantee."""
+        number worse; this is the planned floor, not a guarantee.
+
+        Deliberately follows the LIVE stop — it answers "what is exposed right
+        now", which a breakeven move genuinely does reduce.
+        """
         return abs(self.quantity) * self.risk_per_share
 
     def unrealized(self, mark: float) -> float:
         return (mark - self.entry_price) * self.quantity * self.side.sign
 
     def r_multiple(self, mark: float) -> float:
-        """Progress in units of initial risk — the only comparable P&L scale
+        """Progress in units of INITIAL risk — the only comparable P&L scale
         across a $12 stock and a $600 one."""
-        rps = self.risk_per_share
+        rps = self.initial_risk_per_share
         if rps <= 0:
             return 0.0
         return ((mark - self.entry_price) * self.side.sign) / rps

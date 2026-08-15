@@ -228,3 +228,108 @@ class ConfigValidationTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RMultipleSurvivesStopMovesTest(unittest.TestCase):
+    """R is measured against the risk taken AT ENTRY, permanently.
+
+    Found by audit, in the exit mix of the first corrected evaluation: `target`
+    exits averaged +0.305R when the target sits at 2R. The cause was that
+    `risk_per_share` read the CURRENT stop, and `breakeven_after_partial` moves
+    the stop to entry — making the denominator zero and r_multiple 0.0 for
+    every trade that had gone well enough to bank a partial.
+
+    The damage is doubly compounding: winners were recorded as 0.0R, and
+    win_rate counts `r > 0`, so those same winners were then counted as
+    LOSSES. Expectancy and win rate were both dragged down by exactly the
+    trades that worked.
+    """
+
+    def position(self, stop=98.0):
+        return Position(
+            symbol="AAA", side=Side.BUY, quantity=100, entry_price=100.0,
+            stop_price=stop, target_price=104.0,
+            opened_at=datetime(2026, 3, 10, 14, 30, tzinfo=UTC),
+        )
+
+    def test_r_is_unchanged_when_the_stop_moves_to_breakeven(self):
+        pos = self.position()
+        self.assertAlmostEqual(pos.r_multiple(104.0), 2.0)
+        pos.stop_price = pos.entry_price          # breakeven move
+        self.assertAlmostEqual(pos.r_multiple(104.0), 2.0,
+                               msg="R collapsed when the stop moved")
+
+    def test_a_winner_never_reports_zero_r(self):
+        pos = self.position()
+        pos.stop_price = pos.entry_price
+        self.assertGreater(pos.r_multiple(103.0), 0.0)
+
+    def test_a_trailed_stop_does_not_inflate_r(self):
+        """Trailing the stop UP would shrink the denominator and inflate R —
+        the same bug in the flattering direction."""
+        pos = self.position()
+        pos.stop_price = 101.0                    # trailed into profit
+        self.assertAlmostEqual(pos.r_multiple(104.0), 2.0)
+
+    def test_open_risk_does_follow_the_live_stop(self):
+        """Open risk is a FORWARD-looking exposure number and must track the
+        real stop; only the R yardstick is frozen at entry."""
+        pos = self.position()
+        self.assertAlmostEqual(pos.open_risk, 200.0)
+        pos.stop_price = pos.entry_price
+        self.assertAlmostEqual(pos.open_risk, 0.0)
+
+    def test_a_zero_width_entry_stop_is_still_zero_r(self):
+        pos = self.position(stop=100.0)
+        self.assertEqual(pos.r_multiple(105.0), 0.0)
+
+
+class PartialProfitIsCountedTest(unittest.TestCase):
+    """Profit banked by a partial take belongs in the trade's result.
+
+    The engine closes half the position at +1R and lets the rest run. That
+    banked half reached broker equity but never reached the trade ledger: the
+    ClosedTrade recorded only what the REMAINDER did. 66 of 225 trades in the
+    first corrected evaluation took a partial, so roughly a third of the
+    sample was reported with its best-performing half deleted.
+    """
+
+    def portfolio(self):
+        from qd.config import RiskConfig, UniverseConfig
+        return Portfolio(100_000.0, RiskConfig(), UniverseConfig())
+
+    def opened(self, p):
+        from qd.types import Intent
+        p.open(Position(
+            symbol="AAA", side=Side.BUY, quantity=100, entry_price=100.0,
+            stop_price=98.0, target_price=104.0,
+            opened_at=datetime(2026, 3, 10, 14, 30, tzinfo=UTC),
+        ))
+        return p.get("AAA")
+
+    def test_a_partial_contributes_to_the_final_r(self):
+        p = self.portfolio()
+        pos = self.opened(p)
+        # Bank half at +1R (102.0), then the rest exits at breakeven.
+        p.take_partial("AAA", 50, 102.0, datetime(2026, 3, 11, 14, 30, tzinfo=UTC))
+        trade = p.close("AAA", 100.0, datetime(2026, 3, 12, 14, 30, tzinfo=UTC), "stop")
+        # Half the position made +1R, half made 0R: +0.5R overall, not 0R.
+        self.assertAlmostEqual(trade.r_multiple, 0.5, places=6)
+        self.assertGreater(trade.pnl, 0.0)
+
+    def test_without_a_partial_nothing_changes(self):
+        p = self.portfolio()
+        self.opened(p)
+        trade = p.close("AAA", 104.0, datetime(2026, 3, 12, 14, 30, tzinfo=UTC), "target")
+        self.assertAlmostEqual(trade.r_multiple, 2.0, places=6)
+
+    def test_the_partial_reduces_the_open_quantity(self):
+        p = self.portfolio()
+        self.opened(p)
+        p.take_partial("AAA", 40, 102.0, datetime(2026, 3, 11, 14, 30, tzinfo=UTC))
+        self.assertEqual(p.get("AAA").quantity, 60)
+
+    def test_a_partial_on_a_missing_position_is_a_noop(self):
+        p = self.portfolio()
+        self.assertIsNone(p.take_partial("ZZZ", 10, 100.0,
+                                         datetime(2026, 3, 11, tzinfo=UTC)))

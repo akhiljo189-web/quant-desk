@@ -219,9 +219,30 @@ over any single favourable stretch.
 The sample must cover 2000–02, 2008, 2018, 2020 and 2022 — the periods where
 the defensive filter either works or does not. That is the whole question.
 
-**Source:** a free long-history daily provider (Stooq and Yahoo both carry
-these tickers back to inception). A new adapter is required; the Polygon
-adapter cannot reach back far enough.
+**Source: Yahoo Finance chart API**, verified reachable and complete on
+2026-08-16:
+
+| Ticker | Range verified | Bars |
+|---|---|---|
+| XLK, XLE and the seven other original sectors | 1998-12-22 → 2026-08-14 | 6,953 |
+| XLRE | 2015-10-08 → 2026-08-14 | 2,726 |
+| XLC | 2018-06-19 → 2026-08-14 | 2,050 |
+| GLD | 2004-11-18 → 2026-08-14 | 5,468 |
+| IEF, SHY | 2002-07-30 → 2026-08-14 | 6,050 |
+| SPY (benchmark) | 1993-01-29 → 2026-08-14 | 8,443 |
+
+`adjclose` is present on every series, satisfying the total-return
+requirement below. Twenty-seven years of history covering the dot-com crash,
+2008, 2018, 2020 and 2022.
+
+**Stooq was the first choice and is unusable.** It now serves a JavaScript
+proof-of-work bot challenge rather than CSV, so an HTTP client receives an
+HTML page. Defeating it would require a headless browser for a data fetch,
+which is not a dependency worth taking.
+
+Requests need a browser `User-Agent` header; without one the endpoint returns
+429. The environment's egress allowlist must include
+`query1.finance.yahoo.com`.
 
 **Point-in-time handling is unchanged from the existing system.** Each record
 carries `known_at`; the replay provider physically cannot serve a record whose

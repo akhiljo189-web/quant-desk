@@ -95,7 +95,7 @@ engine over it. It should report **no trades** — synthetic data has no
 structure, so trading it would indicate a leak rather than a discovery.
 
 ```bash
-python3 -m unittest discover -s tests    # 228 tests
+python3 -m unittest discover -s tests    # 331 tests
 python3 -m qd.cli gate --live            # why live trading is blocked
 python3 -m qd.cli replay --symbols AAPL,MSFT --cost 2.0
 python3 -m qd.cli journal                # what it did, and what it declined
@@ -253,7 +253,7 @@ risk, never to sit on it.
 
 ## Honest status
 
-- The **infrastructure** is built and tested: 228 tests, including explicit
+- The **infrastructure** is built and tested: 331 tests, including explicit
   look-ahead guards and a null test proving the evaluator reports NO EDGE on
   random data.
 - **No edge has been demonstrated**, and the hypothesis above is expected to
@@ -305,7 +305,7 @@ research/
   replay.py        walk-forward over the real engine
   evaluate.py      cost stress, ordering band, folds -> verdict -> edge proof
   synthetic.py     deterministic fake data for the null test
-tests/             228 tests
+tests/             331 tests
 ```
 
 ## Licence

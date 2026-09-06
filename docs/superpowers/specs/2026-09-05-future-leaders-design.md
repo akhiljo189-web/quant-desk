@@ -1164,3 +1164,80 @@ it.**
 
 Recorded because it has already caused one bug in this project: Form 4 writes
 `YYYY-MM-DD`, Schedule 13D/G writes `MM/DD/YYYY`, and 13F writes `MM-DD-YYYY`.
+
+---
+
+## 20. MEASURED — 2026-09-06: the lifecycle classifier, and two defects it exposed
+
+`qd/providers/lifecycle.py`, 32 tests. This is the survivorship machinery from
+§3, §15 and §17 — the free path that removed the CRSP purchase from the
+critical path.
+
+### It classifies real deaths to the day
+
+Validated against companies known to have died, with two live controls:
+
+| Company | Classified | Reason | Truth |
+|---|---|---|---|
+| Sears Holdings | 2018-10-15 | distress | Ch11 2018-10-15 |
+| Silicon Valley Bank | 2023-03-10 | distress | failed 2023-03-10 |
+| Blockbuster | 2010-09-23 | distress | Ch11 2010-09-23 |
+| Bed Bath & Beyond | 2023-04-24 | distress | Ch11 2023-04-23 |
+| First Republic | 2024-02-09 | **unknown** | FDIC seized 2023-05-01 |
+| Intel, Ford | — | alive | alive |
+
+8-K item 1.03 carries the same property that makes item 2.02 trustworthy in
+`providers/edgar.py`: the filer applies the code under legal obligation, so
+identifying a bankruptcy is a label lookup rather than a heuristic.
+
+### Two defects that fixtures could not have found
+
+Both were invisible to the unit tests and appeared immediately on real data.
+Both flattered results. Both now have regression tests.
+
+**One — death was dated by the LAST marker, not the first.** Companies file
+item 1.03 repeatedly through a long bankruptcy: plan confirmation, asset sales,
+emergence. Taking the latest dated Sears' death **2019-11-04 against a real
+Chapter 11 of 2018-10-15**, and Bed Bath & Beyond **2023-09-29 against
+2023-04-24**. That error keeps a failing company in the universe through the
+exact thirteen months it was failing — every return computed over that window
+would have been flattered. Death is now dated by the first marker of the
+winning reason.
+
+**Two — a company with no periodic filings vanished from the cohort entirely.**
+First Republic found this. Seized by the FDIC, so no Chapter 11 and no item
+1.03; and no 10-K in the window either, so it reached neither `DEAD` nor
+`PRESUMED_DEAD`, kept reason `NONE`, and `cohort_report` dropped it. **A bank
+failure silently disappearing from the delisting cohort is precisely the
+survivorship failure this module exists to prevent.** Liveness now falls back
+to any filing when no periodic report exists — while still judging companies
+that have periodic filings on those alone, so the Lehman estate trap stays
+closed.
+
+### The gate fires, and it fires on this cohort
+
+Of the five delistings above, one is `UNKNOWN` — 20%, above the 15% threshold
+registered in §15. `passes_unknown_gate` returns **False**. On a real cohort
+this small the gate is doing exactly what it was written to do: refusing to let
+a result be reported when a fifth of the exits cannot be explained.
+
+### A limitation recorded, not fixed
+
+First Republic is dated **2024-02-09, nine months after the actual seizure**.
+Silence-based dating is necessarily late — it can only fire once the silence
+has lasted long enough to mean something (450 days). For distress names this
+error points the wrong way: the company is treated as investable for months
+after it was in fact gone.
+
+The legal markers do not have this problem, which is why `DEAD` and
+`PRESUMED_DEAD` are separate states and why `reason_is_certain` exists. Any
+result leaning on `PRESUMED_DEAD` names must report how many there were.
+
+### The scenario sweep stays uniform
+
+`delisting_return` applies 0% / −30% / −100% **uniformly across reasons**,
+exactly as §14 registered. Reason-specific returns would be a fitted parameter
+chosen without evidence. What the reason codes buy is interpretation:
+`CohortReport.total_loss_is_implausible` reports whether most exits were
+non-distress, which is what says the −100% corner is harsher than reality for
+a given cohort — §15's correction, implemented rather than assumed.

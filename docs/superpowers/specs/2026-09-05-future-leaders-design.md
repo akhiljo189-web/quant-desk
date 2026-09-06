@@ -751,3 +751,114 @@ project stops here" no longer applies. What it is replaced by is narrower and
 must not be overstated: the universe is survivorship-free, the death dates are
 approximate, the terminal returns are assumed rather than measured, and every
 downstream result carries the three-way sensitivity or it does not get reported.
+
+---
+
+## 15. CORRECTION — 2026-09-06: −100% is not a conservative bound
+
+§14 called the −100% delisting assumption "the pessimal bound". **That is
+wrong, and the error is not cosmetic.** It is recorded here rather than edited
+away, because the reasoning that produced it is the reasoning to watch for.
+
+−100% is the pessimal bound **for the portfolio**. It is not a conservative
+bound **for the hypothesis test**, because not every company leaves the
+universe by failing. Acquisitions, mergers, going-private transactions and
+exchange moves all end a listing, and several of them end it at a premium. A
+name identified at $40 and acquired two years later at $95 is a large win that
+the −100% rule would record as a total loss.
+
+**The direction of the resulting bias depends on the delisting mix, and it can
+run either way.** Worse, it can run against the hypothesis in a specific and
+undetectable manner: if insider purchases predict *acquisitions* — entirely
+plausible, since officers and directors know about merger discussions before
+the market does — then marking every acquisition at −100% would systematically
+destroy the exact signal being tested. That produces a **false negative**, and
+nothing in the sensitivity table as described in §14 would reveal it. A
+one-sided robustness check cannot detect a two-sided bias.
+
+### Registered: classify the reason before assigning the return
+
+Every name leaving the universe is classified, and the counts are reported with
+every result. The categories:
+
+| Category | Meaning |
+|---|---|
+| `BANKRUPTCY_DISTRESS` | Chapter 7/11, receivership, FDIC seizure |
+| `MERGER_ACQUISITION` | Acquired by another entity |
+| `GOING_PRIVATE` | Taken private |
+| `EXCHANGE_DELISTING` | Failed a listing standard, not otherwise resolved |
+| `UNKNOWN` | Stopped filing, cause unreadable |
+
+The counts are the diagnostic. 143 delistings of which 108 are distress means
+delisting-return accuracy is load-bearing and the paid data may be needed. 143
+of which 74 are acquisitions means a blanket −100% is absurd and would be
+manufacturing a false negative.
+
+### Measured: EDGAR gives the reason as a label, not a heuristic
+
+Tested against five companies known to have died. The markers:
+
+| Marker | Reads as | Reliability |
+|---|---|---|
+| 8-K **item 1.03** | `BANKRUPTCY_DISTRESS` | **Exact.** Sears 2018-10-15, BBBY 2023-04-24, SVB 2023-03-10, Blockbuster 2010-09-24 — each matches the real Chapter 11 date to the day |
+| 8-K **item 3.01** | `EXCHANGE_DELISTING` | Fires, but often *precedes* the real cause — Blockbuster's came ten months before its bankruptcy |
+| **SC 13E3** | `GOING_PRIVATE` | Clean, purpose-built form |
+| **DEFM14A** + Form 25 | `MERGER_ACQUISITION` | Needs both |
+| 8-K **item 2.01** | *not usable alone* | Far too noisy — Sears filed five between 2006 and 2019, nearly all ordinary asset sales rather than the company being acquired |
+
+Item 1.03 has the same property that makes item 2.02 trustworthy in
+`providers/edgar.py`: the filer applies the code under a legal obligation, so
+identifying a bankruptcy is a **label lookup rather than a guess**.
+
+**Ordering rule.** Markers appear in sequence and the first is not the cause —
+Blockbuster's exchange-delisting notice precedes its bankruptcy by ten months.
+Classification takes the terminal cluster and resolves by priority:
+`BANKRUPTCY_DISTRESS` > `GOING_PRIVATE` > `MERGER_ACQUISITION` >
+`EXCHANGE_DELISTING` > `UNKNOWN`.
+
+### The blind spot, which is worse than it looks
+
+**First Republic produced no death markers at all.** It was seized by the FDIC
+and sold to JPMorgan; the holding company never filed Chapter 11, so item 1.03
+never fired.
+
+Bank failures follow receivership rather than bankruptcy, and they will land in
+`UNKNOWN`. **Banks are precisely the sector where distress clusters**, so the
+blind spot is not randomly distributed — it removes some of the worst outcomes
+from exactly the industry that produces the worst outcomes, and it removes them
+in the flattering direction.
+
+Registered consequence: **the `UNKNOWN` bucket is assigned the distress
+treatment, not the neutral one.** If `UNKNOWN` exceeds 15% of delistings, the
+result is reported as `INSUFFICIENT DATA` regardless of what the returns say.
+
+### Registered: the verdict tree
+
+Applied after the sensitivity table, before any interpretation:
+
+| Verdict | Condition | Consequence |
+|---|---|---|
+| 🟢 **Robust** | Passes at 0%, −30% **and** −100% | Delisting returns are not driving the result. CRSP unnecessary |
+| 🟡 **Data-sensitive** | Passes at 0% and −30%, fails at −100% | Assumptions materially affect the verdict. CRSP/WRDS becomes worth its cost |
+| 🟠 **Fragile** | Passes only at 0% | **No edge may be claimed.** Missing terminal returns matter too much |
+| 🔴 **Fail** | Fails at 0% | Stop. CRSP cannot rescue the hypothesis |
+
+With the §15 correction attached: a 🟢 result whose delistings are mostly
+acquisitions is **stronger** than the table implies, since −100% understated
+those names. A 🟠 result whose delistings are mostly distress is exactly as bad
+as it looks.
+
+### Registered: build order, and the separation that matters
+
+```
+13D/G parser → 13F parser → universe reconstruction
+    → point-in-time validation → FREEZE DATASET → only then compute returns
+```
+
+The freeze is the load-bearing step. **No decision about how the historical
+universe is constructed may be made while any strategy performance number is
+visible.** Every remaining degree of freedom — how death is dated, how
+`UNKNOWN` is treated, which delisting marker wins — is settled and frozen
+first. Choosing those rules with a return number on screen is the most
+comfortable form of overfitting available to this project, and the one least
+likely to feel like cheating at the time.

@@ -862,3 +862,93 @@ visible.** Every remaining degree of freedom — how death is dated, how
 first. Choosing those rules with a return number on screen is the most
 comfortable form of overfitting available to this project, and the one least
 likely to feel like cheating at the time.
+
+---
+
+## 16. MEASURED — 2026-09-06: the 13D/G parser against real filings
+
+`qd/providers/schedules.py` was validated against 120 Schedule 13D/G filings
+sampled across 2026 Q3 from the EDGAR form index. **120 parsed, 0 empty, 0
+fetch failures, and percent-of-class read on 120 of 120 positions.**
+
+### The group double-count, measured
+
+| | Count |
+|---|---|
+| Reporting-person rows | 301 |
+| Distinct positions after `collapse_group` | 120 |
+| **Inflation if summed naively** | **2.51×** |
+
+Reporting persons per filing ran 1, 2, 3 … up to **21 on a single filing**.
+A fund files jointly with its general partner, its manager and its principal,
+and all of them report the same block because all of them beneficially own it.
+
+This is not a rounding problem. A "multiple institutions accumulating the same
+stock" signal — which the source brief asks for explicitly and §5.3 weights —
+would have been **two and a half times overstated on average**, manufactured
+entirely out of a filing convention. `collapse_group` keys on the accession,
+because a joint filing is by definition one submission, and keeps the largest
+reported stake within each group.
+
+### Composition of the sample
+
+| Split | Counts |
+|---|---|
+| Form | 104 × 13G, 16 × 13D |
+| Filer class | 83 institutional (13d-1(b)), 16 passive (13d-1(c)), 5 exempt (13d-1(d)), 16 activist |
+| Stake | min 0.00%, median 6.30%, max 68.33% |
+| Exits (amendment below 5%) | **26 of 120 — 22%** |
+
+Two things follow. **13G outnumbers 13D roughly seven to one**, so pooling them
+would drown the informative form in the passive one — the design's separation
+of the two is load-bearing, not tidiness. And **more than a fifth of filings
+are holders leaving**, arriving on an identically-shaped document; storing only
+the percentage would let every one of them read as an ordinary disclosure. The
+`is_exit` flag exists for that and the measured 22% is why.
+
+### Traps found in the schemas, all now pinned by tests
+
+Verified by reading real 13D and 13G documents rather than assuming a shared
+format. The two forms describe the same fact and agree on almost no field name:
+
+| | 13D | 13G |
+|---|---|---|
+| namespace | `.../schedule13D` | `.../schedule13g` |
+| event date | `dateOfEvent` | `eventDateRequiresFilingThisStatement` |
+| issuer CIK | `issuerCIK` | `issuerCik` |
+| percent | `percentOfClass` | `classPercent` |
+| person block | `reportingPersons/reportingPersonInfo` | `coverPageHeaderReportingPersonDetails` |
+| holder CIK | present | **absent entirely** |
+
+The namespaces differ only in the case of the final letter. A parser matching
+fully-qualified tags handles one form and returns an empty list for the other,
+which does not look like a bug — it looks like a company with no large holders.
+Everything matches on local element names for that reason.
+
+Two further consequences recorded: dates are **MM/DD/YYYY**, not Form 4's ISO,
+so a value like 03/04/2026 would silently transpose month and day if read as
+ISO. And 13G carries **no holder CIK at all**, so holders can only be matched
+across filings by name — which is fuzzy, and is a known limit on any
+"same institution accumulating over time" measure.
+
+### The disclosure lag is read, not assumed
+
+13G's deadline depends on the filer's class, which the filing states in the
+rule it cites: 13d-1(b) institutional, 13d-1(c) passive, 13d-1(d) exempt. The
+class parses on every filing in the sample. The 2023 amendments also shortened
+these deadlines, so any single fixed lag would be wrong on one side of that
+date whichever value it took; what is stored is the maximum lag by class, used
+to bound staleness rather than to date anything — `known_at` does the dating.
+
+### The limit that matters most
+
+Filings before the structured-XML mandate are HTML or plain text with no
+`primary_doc.xml`, and there is no reliable way to read a percentage from two
+decades of free-form cover pages. Those return an empty list.
+
+**That is correct and it is dangerous**, because an empty list is
+indistinguishable from "this company had no 5% holders". `has_structured_data`
+exists so a caller can tell the two apart, and any archive built from these
+must record which era it covers. Structured documents were confirmed present
+across 2024 Q1 through 2026 Q3; how far back they run is not yet established
+and must be before the universe reconstruction depends on them.

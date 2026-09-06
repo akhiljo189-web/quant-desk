@@ -683,3 +683,71 @@ The prose path is what covers the pre-2023 filings, which is most of the
 history any long-horizon backtest would use. **It remains untested, and testing
 it requires pulling filings from before 2023 — which `filings.recent` may not
 reach.** This is a known gap, recorded rather than assumed away.
+
+---
+
+## 14. AMENDMENT — 2026-09-06: the stage-0 gate has a free path
+
+§3 states that without a delisting-inclusive universe source the project stops,
+and §6 lists EDGAR reconstruction as "partial mitigation at best". The account
+owner has confirmed no CRSP/WRDS access. Before accepting a paid subscription
+as the only route, the free route was tested rather than assumed.
+
+**It works, for the universe.** EDGAR submissions were pulled for seven
+companies known to have died — Sears Holdings, Bed Bath & Beyond, Lehman
+Brothers, Silicon Valley Bank, First Republic, Blockbuster — alongside two live
+controls. Every one returned a full filing history with a readable last-filing
+date. A company that ever filed is in EDGAR permanently; vendors drop it, the
+SEC does not. **The survivorship-free universe is free.**
+
+Three cautions the test surfaced, which shape how death must be detected:
+
+1. **"Last filing" is not the delisting date.** Lehman Brothers' most recent
+   filing is dated 2025 — bankruptcy estates and post-bankruptcy shells keep
+   filing for years. The death signal must be the last **periodic** report
+   (10-K/10-Q), or better, the **Form 25** (delisting notification) and
+   **Form 15** (deregistration) that are the actual legal markers.
+2. **`filings.recent` truncates at ~1000 entries.** Heavy filers lose their
+   early history, exactly as `edgar.recent_only_warning` already reports for
+   the PEAD universe. Older filings need the separate archive files.
+3. **Filing patterns differ by entity type.** First Republic returned 43 forms
+   and no 10-K in the window; bank holding companies file differently. Any
+   rule keyed on 10-K presence alone will mislabel a whole sector.
+
+### What is still missing, and why it is no longer fatal
+
+EDGAR gives the universe and the approximate date of death. It does not give
+the **terminal return** — what a holder actually lost between the last
+observable price and the delisting. That gap was the reason §3 called this
+"partial mitigation".
+
+The gap is real but it is **bounded and testable**, which is different from
+unknown. The registered approach:
+
+- Assign an explicit delisting return to every name that dies, following the
+  established convention for missing delisting data (Shumway 1997), and record
+  the assumption in the archive manifest rather than burying it in code.
+- **Run every result at three assumptions: 0%, −30% and −100%.** The −100% case
+  is the pessimal bound — every delisted holding went to zero.
+- **The sensitivity IS the finding.** If the verdict is stable across that
+  range, the missing prices do not matter and the paid data would not have
+  changed the conclusion. If the verdict flips somewhere inside it, that is
+  positive proof the paid data is required, which is a far better basis for
+  spending four figures than a prior.
+
+This is deliberately the opposite of the usual order. Rather than buying data
+to avoid a bias, the bias is bounded first, and the purchase happens only if
+the bound turns out to be load-bearing.
+
+**Registered before any return data is touched:** a result that survives the
+−100% assumption is the only one that may be reported without the sensitivity
+table attached. Anything weaker must be reported with all three numbers, and a
+result that holds only at 0% is to be read as no result at all.
+
+### Stage 0 is therefore unblocked, with its limitation recorded
+
+The gate in §11 is satisfied by the free path, not by a purchase. §3's "the
+project stops here" no longer applies. What it is replaced by is narrower and
+must not be overstated: the universe is survivorship-free, the death dates are
+approximate, the terminal returns are assumed rather than measured, and every
+downstream result carries the three-way sensitivity or it does not get reported.

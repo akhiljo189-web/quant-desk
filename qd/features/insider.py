@@ -71,6 +71,39 @@ W_INTENSITY = 35.0 / 65.0
 W_CLUSTER = 20.0 / 65.0
 W_SENIORITY = 10.0 / 65.0
 
+
+@dataclass(frozen=True, slots=True)
+class ScoreWeights:
+    """How the components combine.
+
+    Two presets exist and the distinction is deliberate.
+
+    REGISTERED is the design's §5.3 weighting and MUST NOT be tuned. The design
+    forbids re-weighting after seeing results, and any measurement of whether
+    this signal works has to use it — otherwise the answer is fitted.
+
+    SCREENER is a different job. It ranks candidates for a person to read, and
+    a person is better served by "four insiders agreed" than by "one insider
+    bought a lot", because agreement is harder to fake and easier to check.
+    It is NOT evidence about the hypothesis and no result may be reported from
+    it. Keeping the two apart is what stops a ranking preference from quietly
+    becoming a research finding.
+    """
+    intensity: float
+    cluster: float
+    seniority: float
+    label: str = ""
+
+    @classmethod
+    def registered(cls) -> "ScoreWeights":
+        return cls(W_INTENSITY, W_CLUSTER, W_SENIORITY, "registered")
+
+    @classmethod
+    def screener(cls) -> "ScoreWeights":
+        # Agreement leads, size supports. Same three components, reordered.
+        return cls(20.0 / 65.0, 35.0 / 65.0, 10.0 / 65.0, "screener")
+
+
 # The distribution penalty, applied as a multiplier rather than a subtraction
 # so it cannot drive an accumulation score below zero. -10 of 65 at full
 # strength, matching the design's weight.
@@ -110,6 +143,9 @@ class InsiderScore:
     purchase_count: int
     purchase_value: float
     sale_value: float
+    # Which preset produced `score`. Carried so a screener ranking can never be
+    # mistaken for a measurement made under the design's registered weights.
+    weighting: str = "registered"
     components_absent: tuple[str, ...] = field(default=ABSENT_COMPONENTS)
 
     @property
@@ -128,6 +164,7 @@ def score_insiders(
     as_of: datetime,
     symbol: Optional[str] = None,
     window_days: int = WINDOW_DAYS,
+    weights: Optional[ScoreWeights] = None,
 ) -> InsiderScore:
     """Score insider accumulation as of `as_of`, from whatever was public then.
 
@@ -137,6 +174,7 @@ def score_insiders(
     the window is about when this system could have acted, which is the only
     thing a backtest is allowed to know.
     """
+    w = weights or ScoreWeights.registered()
     now = ensure_utc(as_of)
     cutoff = now - timedelta(days=window_days)
 
@@ -151,9 +189,9 @@ def score_insiders(
 
     if not purchases:
         return InsiderScore(
-            symbol=resolved_symbol, as_of=now, score=0.0, intensity=0.0,
-            cluster_size=0, top_seniority=Seniority.OTHER, purchase_count=0,
-            purchase_value=0.0, sale_value=sale_value,
+            symbol=resolved_symbol, as_of=now, score=0.0, weighting=w.label,
+            intensity=0.0, cluster_size=0, top_seniority=Seniority.OTHER,
+            purchase_count=0, purchase_value=0.0, sale_value=sale_value,
         )
 
     intensity = _intensity(purchases)
@@ -161,9 +199,9 @@ def score_insiders(
     seniority = max(t.seniority for t in purchases)
 
     raw = (
-        W_INTENSITY * intensity
-        + W_CLUSTER * min(cluster / CLUSTER_SATURATION, 1.0)
-        + W_SENIORITY * (seniority / Seniority.CEO)
+        w.intensity * intensity
+        + w.cluster * min(cluster / CLUSTER_SATURATION, 1.0)
+        + w.seniority * (seniority / Seniority.CEO)
     )
     score = 100.0 * max(0.0, raw * (1.0 - _sell_penalty(purchase_value, sale_value)))
 
@@ -171,6 +209,7 @@ def score_insiders(
         symbol=resolved_symbol,
         as_of=now,
         score=min(100.0, score),
+        weighting=w.label,
         intensity=intensity,
         cluster_size=cluster,
         top_seniority=seniority,
@@ -271,4 +310,4 @@ def _sell_penalty(purchase_value: float, sale_value: float) -> float:
     return MAX_SELL_PENALTY * (sale_value / total)
 
 
-__all__ = ["InsiderScore", "score_insiders", "WINDOW_DAYS"]
+__all__ = ["InsiderScore", "ScoreWeights", "score_insiders", "WINDOW_DAYS"]

@@ -601,3 +601,85 @@ The specific failure mode to guard against, in order of likelihood:
 **Most likely verdict, stated in advance: claim A passes weakly, claim C
 fails.** Recording it now means a marginal result reads as the coin flip it is
 rather than as vindication.
+
+---
+
+## 13. MEASURED — 2026-09-06: what is actually in the Form 4 stream
+
+The Form 4 parser (`qd/providers/forms.py`) was run against real EDGAR filings
+for the first time. This section records what came back, because one number in
+it changes §7 and §8.
+
+**Sample.** 240 Form 4 documents, the most recent 30 each for INTC, F, MU, AMD,
+WDC, ON, MCHP and GT. 959 transaction rows. Zero fetch failures, zero parse
+failures.
+
+### Composition
+
+| Rows | Share | Classification |
+|---|---|---|
+| 380 | 39.6% | Rule 10b5-1 plan |
+| 272 | 28.4% | derivative table row |
+| 257 | 26.8% | compensation (codes A, F, M) |
+| 42 | 4.4% | open-market sale |
+| 6 | 0.6% | transfer (gift, conversion) |
+| **2** | **0.2%** | **open-market purchase** |
+
+Two purchases in 959 rows:
+
+- 2026-06-24 — F, THORNTON JOHN L, director, 10,600 sh, $148,880
+- 2026-08-14 — INTC, TAN LIP BU, CEO, 105,263 sh, $9,999,985
+
+### What this changes
+
+**§1 understated the problem.** The hypothesis section says "the overwhelming
+majority" of Form 4s are automatic, and §4's module note says roughly nine in
+ten. The measured figure is **999 in 1000**. The exclusion machinery is not a
+refinement on the signal; it is essentially the whole computation, and a parser
+without it would be reporting a number in which the true signal is 0.2% of the
+mass.
+
+**§8's sample problem is worse than stated, and in a specific way.** The
+concern registered there was the number of independent *time* periods. This
+adds a second, sharper constraint: in any 90-day window, almost every company
+in a universe will have **no qualifying purchase at all** and will score
+exactly zero. A decile sort on the insider score would therefore be sorting
+mostly ties, and the "top decile" would not be the top 10% of a distribution —
+it would be whichever handful of companies had any insider buying at all,
+padded out with zeros.
+
+**Consequence for §7, registered before any result.** The primary test must
+therefore NOT be a decile sort on the raw score. It is an **event study**:
+companies with a qualifying purchase in the window, against a matched control
+set drawn from the same universe, sector and size band with no purchase in the
+same window. The decile sort is retained only as a secondary reading *within*
+the set that has any activity, where the score is actually distinguishing
+between non-zero values. Registering this now, before any return data has been
+touched, prevents the more flattering framing being chosen after the fact.
+
+This does not weaken the hypothesis. Insider purchases being rare is part of
+why they are informative — a signal present in every name every quarter would
+be a factor, not information. But it means the achievable sample is much
+smaller than the universe size suggests, and the error bars in §8 should be
+expected to be wider still.
+
+### What was validated, and what was not
+
+**Validated.** Every exclusion path fires on real data: the structured 10b5-1
+flag, the derivative/non-derivative split, and each compensation code. The
+double-count trap is visible in the sample — a code M option exercise appears
+once in each table on the same filing, and only the derivative row is marked as
+such.
+
+**Not validated.** The footnote-prose path for Rule 10b5-1. A separate run
+checked how many documents were flagged by prose alone, with no structured
+`aff10b5One` flag: **zero of 240**. Every plan exclusion in this sample came
+from the structured flag. That means the deliberately over-broad
+document-scoped prose rule (`forms.py`, `_has_plan_prose`) cost nothing here —
+but it also means the path was never exercised, because the SEC only mandated
+the structured flag in 2023 and every filing in this sample post-dates it.
+
+The prose path is what covers the pre-2023 filings, which is most of the
+history any long-horizon backtest would use. **It remains untested, and testing
+it requires pulling filings from before 2023 — which `filings.recent` may not
+reach.** This is a known gap, recorded rather than assumed away.

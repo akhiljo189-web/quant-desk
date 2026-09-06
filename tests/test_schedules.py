@@ -11,14 +11,23 @@ The suite runs with no network and no key.
 
 from __future__ import annotations
 
+import re
 import unittest
 from datetime import datetime
 
 from qd.providers.schedules import (
+    XML_MANDATORY_FROM,
+    CoverageState,
     FilerClass,
+    IdentityConfidence,
+    PositionChange,
     ScheduleKind,
+    breadth_events,
+    classify_change,
     collapse_group,
+    normalize_holder_name,
     parse_schedule_13,
+    same_holder,
 )
 from qd.types import UTC
 
@@ -100,11 +109,12 @@ def _g_person(name: str, shares: str, pct: str, ptype: str = "PN") -> str:
 
 
 def parse_d(xml: str = D_XML):
-    return parse_schedule_13(xml, accepted_at=ACCEPTED, accession="0000-26-000001")
+    return list(parse_schedule_13(xml, accepted_at=ACCEPTED, accession="0000-26-000001"))
 
 
 def parse_g(**kw):
-    return parse_schedule_13(g_xml(**kw), accepted_at=ACCEPTED, accession="0000-26-000002")
+    return list(parse_schedule_13(g_xml(**kw), accepted_at=ACCEPTED,
+                                  accession="0000-26-000002"))
 
 
 class ThirteenDTest(unittest.TestCase):
@@ -252,9 +262,9 @@ class GroupDoubleCountTest(unittest.TestCase):
     def test_genuinely_different_holders_are_not_collapsed(self):
         """Two unrelated funds each holding 6% is real breadth, and must
         survive the same routine that collapses a joint filing."""
-        rows = parse_g(persons=_g_person("Fund A", "1000000.00", "6.0")) + \
+        rows = parse_g(persons=_g_person("Fund A", "1000000.00", "6.0")) + list(
             parse_schedule_13(g_xml(persons=_g_person("Fund B", "900000.00", "5.4")),
-                              accepted_at=ACCEPTED, accession="different-accession")
+                              accepted_at=ACCEPTED, accession="different-accession"))
         self.assertEqual(len(collapse_group(rows)), 2)
 
     def test_collapse_keeps_the_largest_reported_stake(self):
@@ -291,23 +301,179 @@ class ThresholdTest(unittest.TestCase):
 
 
 class RobustnessTest(unittest.TestCase):
-    def test_malformed_xml_returns_empty(self):
-        self.assertEqual(parse_schedule_13("<edgarSubmission><oops>",
-                                           accepted_at=ACCEPTED), [])
+    def test_malformed_xml_reports_parse_failure(self):
+        r = parse_schedule_13("<edgarSubmission><oops>", accepted_at=ACCEPTED)
+        self.assertEqual(len(r), 0)
+        self.assertEqual(r.state, CoverageState.PARSE_FAILED)
+        self.assertFalse(r.is_usable_zero)
 
-    def test_an_unstructured_pre_2024_document_returns_empty(self):
-        """Filings before the structured mandate are HTML or plain text with no
-        primary_doc.xml. They must return nothing rather than raise — but the
-        CALLER has to know the difference between 'no 5% holders' and 'this era
-        has no machine-readable filings', which is what has_structured_data is
-        for."""
-        html = b"<html><body>SCHEDULE 13G ... Percent of class: 7.2%</body></html>"
-        self.assertEqual(parse_schedule_13(html.decode(), accepted_at=ACCEPTED), [])
+    def test_an_unstructured_legacy_document_is_not_evidence_of_absence(self):
+        """GATE DG-HISTORY-001. Structured XML was optional from 2023-12-18 and
+        mandatory from 2024-12-18; before that filers used HTML or ASCII. An
+        empty result there means "not parsed", never "no 5% holders" — and if
+        the two were conflated, institutional ownership would appear to rise
+        out of nothing at the moment the file format changed."""
+        html = "<html><body>SCHEDULE 13G ... Percent of class: 7.2%</body></html>"
+        r = parse_schedule_13(html, accepted_at=datetime(2019, 5, 1, tzinfo=UTC))
+        self.assertEqual(len(r), 0)
+        self.assertEqual(r.state, CoverageState.LEGACY_UNPARSED)
+        self.assertFalse(r.is_usable_zero)
+        self.assertFalse(r.state.is_evidence_of_absence)
 
     def test_a_missing_percentage_is_none_not_zero(self):
         """Zero would read as a holder who has exited."""
         stripped = D_XML.replace("<percentOfClass>10.7</percentOfClass>", "")
         self.assertIsNone(parse_d(stripped)[0].percent_of_class)
+
+
+class CoverageStateTest(unittest.TestCase):
+    """Missing is not zero, and the difference is time-dependent."""
+
+    def test_a_structured_filing_with_holders_is_structured(self):
+        self.assertEqual(
+            parse_schedule_13(D_XML, accepted_at=ACCEPTED).state,
+            CoverageState.PARSED_STRUCTURED,
+        )
+
+    def test_only_a_read_document_is_evidence_of_absence(self):
+        self.assertTrue(CoverageState.NO_RELEVANT_POSITION.is_evidence_of_absence)
+        for state in (CoverageState.LEGACY_UNPARSED, CoverageState.PARSE_FAILED,
+                      CoverageState.PARSED_LEGACY, CoverageState.PARSED_STRUCTURED):
+            self.assertFalse(state.is_evidence_of_absence, state)
+
+    def test_the_mandate_boundary_is_the_regulatory_date(self):
+        """2024-12-18, from the rule — not a boundary discovered by sampling.
+        A sample can show structured filings EXIST in a period, never that they
+        are COMPLETE in it, and 2023-12-18 to 2024-12-17 is mixed by design."""
+        self.assertEqual(XML_MANDATORY_FROM.isoformat(), "2024-12-18")
+
+    def test_a_structured_filing_reporting_nobody_is_a_usable_zero(self):
+        empty = re.sub(r"<reportingPersons>.*?</reportingPersons>", "",
+                       D_XML, flags=re.S)
+        r = parse_schedule_13(empty, accepted_at=ACCEPTED)
+        self.assertEqual(r.state, CoverageState.NO_RELEVANT_POSITION)
+        self.assertTrue(r.is_usable_zero)
+
+
+class BreadthInvariantTest(unittest.TestCase):
+    """PERMANENT INVARIANT.
+
+    One Schedule 13D/G accession contributes at most one ownership-position
+    event to breadth, unless the filing explicitly contains economically
+    distinct positions. Measured group inflation across 120 real filings was
+    2.51x; without this, the brief's "multiple institutions accumulating"
+    signal manufactures itself out of a filing convention.
+    """
+
+    def _joint(self, shares="1304878.00"):
+        persons = "".join(
+            _g_person(n, shares, "7.29")
+            for n in ("22NW Fund, LP", "22NW, LP", "22NW GP, Inc.", "English Aron R")
+        )
+        return parse_g(persons=persons)
+
+    def test_four_signatories_on_one_block_are_one_event(self):
+        self.assertEqual(len(self._joint()), 4)
+        self.assertEqual(len(breadth_events(self._joint())), 1)
+
+    def test_economically_distinct_positions_on_one_filing_survive(self):
+        """The stated exception, and the only one: reporting persons on the
+        same accession holding genuinely different amounts."""
+        persons = (_g_person("Fund A", "1000000.00", "6.0")
+                   + _g_person("Fund B", "500000.00", "3.0"))
+        self.assertEqual(len(breadth_events(parse_g(persons=persons))), 2)
+
+    def test_separate_filings_are_never_merged(self):
+        rows = parse_g() + list(parse_schedule_13(
+            g_xml(persons=_g_person("Unrelated Fund", "900000.00", "5.4")),
+            accepted_at=ACCEPTED, accession="other-accession"))
+        self.assertEqual(len(breadth_events(rows)), 2)
+
+
+class PositionChangeTest(unittest.TestCase):
+    """A snapshot is not a signal: 7.2%->9.1% and 7.2%->4.8% must differ."""
+
+    def _at(self, pct, amendment=False):
+        return parse_g(submission="SCHEDULE 13G/A" if amendment else "SCHEDULE 13G",
+                       persons=_g_person("Fund", "1000.00", str(pct)))[0]
+
+    def test_a_first_original_filing_is_a_new_position(self):
+        self.assertEqual(classify_change(self._at(7.2), None),
+                         PositionChange.NEW_POSITION)
+
+    def test_an_amendment_with_no_prior_is_unknown_not_new(self):
+        """Calling it new would invert the sign whenever the amendment is in
+        fact a reduction."""
+        self.assertEqual(classify_change(self._at(7.2, amendment=True), None),
+                         PositionChange.UNKNOWN_CHANGE)
+
+    def test_increase(self):
+        self.assertEqual(classify_change(self._at(9.1), self._at(7.2)),
+                         PositionChange.INCREASE)
+
+    def test_decrease(self):
+        self.assertEqual(classify_change(self._at(6.0), self._at(9.1)),
+                         PositionChange.DECREASE)
+
+    def test_unchanged(self):
+        self.assertEqual(classify_change(self._at(7.2), self._at(7.2)),
+                         PositionChange.UNCHANGED)
+
+    def test_falling_under_the_threshold_is_its_own_state(self):
+        """Distinct from EXIT: the holder is still there, but the next filing
+        may never come."""
+        self.assertEqual(classify_change(self._at(4.8), self._at(7.2)),
+                         PositionChange.BELOW_5_PERCENT)
+
+    def test_zero_is_an_exit(self):
+        self.assertEqual(classify_change(self._at(0.0), self._at(7.2)),
+                         PositionChange.EXIT)
+
+    def test_opposite_moves_get_opposite_labels(self):
+        up = classify_change(self._at(9.1), self._at(7.2))
+        down = classify_change(self._at(4.8), self._at(7.2))
+        self.assertNotEqual(up, down)
+
+
+class HolderIdentityTest(unittest.TestCase):
+    """False negatives are preferred. A missed increase costs sample; an
+    invented one costs the result."""
+
+    def test_legal_wrappers_are_stripped(self):
+        self.assertEqual(normalize_holder_name("BlackRock, Inc."), "BLACKROCK")
+        self.assertEqual(normalize_holder_name("22NW Fund, LP"), "22NW FUND")
+
+    def test_distinguishing_words_are_never_stripped(self):
+        """The whole risk. These are related but economically distinct
+        entities and must not collapse onto each other."""
+        names = {normalize_holder_name(n) for n in (
+            "BlackRock Fund Advisors",
+            "BlackRock Institutional Trust Company",
+            "BlackRock, Inc.",
+        )}
+        self.assertEqual(len(names), 3)
+
+    def test_a_cik_gives_high_confidence(self):
+        self.assertEqual(parse_d()[0].holder_identity_confidence,
+                         IdentityConfidence.HIGH)
+
+    def test_a_13g_holder_is_only_medium_confidence(self):
+        """13G carries no holder CIK, so matching falls back to names."""
+        self.assertEqual(parse_g()[0].holder_identity_confidence,
+                         IdentityConfidence.MEDIUM)
+
+    def test_name_matching_alone_does_not_satisfy_the_default_bar(self):
+        a, b = parse_g()[0], parse_g()[0]
+        self.assertFalse(same_holder(a, b))
+        self.assertTrue(same_holder(a, b, require=IdentityConfidence.MEDIUM))
+
+    def test_matching_ciks_satisfy_it(self):
+        self.assertTrue(same_holder(parse_d()[0], parse_d()[0]))
+
+    def test_raw_name_is_preserved_alongside_the_normalised_one(self):
+        r = parse_g()[0]
+        self.assertEqual(r.holder_name_raw, "22NW Fund, LP")
+        self.assertEqual(r.holder_name_normalized, "22NW FUND")
 
 
 if __name__ == "__main__":

@@ -952,3 +952,127 @@ exists so a caller can tell the two apart, and any archive built from these
 must record which era it covers. Structured documents were confirmed present
 across 2024 Q1 through 2026 Q3; how far back they run is not yet established
 and must be before the universe reconstruction depends on them.
+
+---
+
+## 17. GATE DG-HISTORY-001 — missing is not zero
+
+**Registered as a hard pre-reconstruction gate, on reviewer instruction.**
+
+> Historical universe or backtest construction must not interpret the absence
+> of structured Schedule 13D/G XML before **2024-12-18** as absence of
+> beneficial ownership.
+>
+> Before historical scoring uses that period, either
+> **(A)** legacy HTML/text 13D/G parsing is implemented and validated, or
+> **(B)** the affected signal is marked unavailable and handled explicitly,
+> never scored zero.
+
+### The boundary is regulatory, not empirical
+
+§16 noted structured filings present from 2024 Q1 and left the true start
+"not yet established". That framing was wrong and would have wasted a research
+cycle: the boundary is set by rule, and sampling could never have found it.
+
+| Period | Treatment |
+|---|---|
+| Before 2023-12-18 | Legacy HTML/ASCII |
+| 2023-12-18 → 2024-12-17 | **Mixed.** XML optional — its presence proves nothing about completeness |
+| 2024-12-18 onward | Structured XML required, subject to exceptions |
+
+A sample can only ever show that structured filings **exist** in a period,
+never that they are **complete** in it. The middle row is the trap: observing
+XML in early 2024 and concluding coverage begins there would silently treat
+every legacy filing in that year as an absence of holders.
+
+### Why this is the most dangerous bias in the project so far
+
+The error is **time-dependent**, which is the worst kind. Institutional
+ownership would appear to rise out of nothing at the exact moment the file
+format changed — a step change in the Big Money Score with no economic cause,
+perfectly correlated with a date. Any model would learn it.
+
+`qd/providers/schedules.py` now returns a `ScheduleParseResult` carrying a
+`CoverageState`, never a bare list:
+
+| State | Meaning | Scoreable as zero? |
+|---|---|---|
+| `PARSED_STRUCTURED` | XML read, records returned | — |
+| `PARSED_LEGACY` | legacy text read (not yet built) | — |
+| `LEGACY_UNPARSED` | pre-mandate, not machine-readable | **NO** |
+| `PARSE_FAILED` | structured but malformed | **NO** |
+| `NO_RELEVANT_POSITION` | read fine, nothing to report | **yes** |
+
+Only `NO_RELEVANT_POSITION` returns true from `is_evidence_of_absence`.
+
+Option (B) is sufficient for a first result on recent data. It is **not**
+sufficient for the 10–20 year history the source brief's NVIDIA/AMD/Micron
+framing implies — that needs option (A), a legacy parser, and the build order
+below reflects it.
+
+---
+
+## 18. Registered — permanent invariants and the revised build order
+
+### INVARIANT BREADTH-001
+
+> One Schedule 13D/G accession contributes **at most one** ownership-position
+> event to breadth or convergence metrics, unless the filing explicitly
+> contains economically distinct positions.
+
+Permanent. Implemented as `breadth_events` and pinned by test. "Economically
+distinct" is deliberately narrow: reporting persons on the same accession
+holding **different share counts**. Same count, same filing, one position.
+
+Validated on 100 real filings: 244 reporting-person rows collapse to 135
+breadth events, and every one of the 17 accessions contributing more than one
+event carries genuinely distinct holdings (one example: 446,759 / 49,242 /
+441,294 shares on a single filing). The invariant permits the exception it
+states and nothing else.
+
+### 13D and 13G are never pooled
+
+The forms carry different information and arrive in a 7:1 volume ratio (§16).
+Registered: **13G volume must not overpower 13D information simply because
+there are more filings.** 13D is a declaration of control intent and carries
+the higher weight per filing; 13G is ownership evidence and carries less.
+Any scoring that sums them into one "5% owner" count is prohibited.
+
+### Position changes, not snapshots
+
+A stake at 7.2% means nothing without its predecessor. `classify_change`
+returns `NEW_POSITION`, `INCREASE`, `UNCHANGED`, `DECREASE`, `EXIT`,
+`BELOW_5_PERCENT` or `UNKNOWN_CHANGE`. Two rules worth stating:
+
+- An **amendment with no prior on file is `UNKNOWN_CHANGE`, never
+  `NEW_POSITION`** — calling it new would invert the sign every time the
+  amendment is in fact a reduction.
+- `BELOW_5_PERCENT` is distinct from `EXIT`: the holder is still there, but
+  the next filing may never come.
+
+### Holder identity — false negatives preferred
+
+13G carries no holder CIK, so longitudinal matching falls back to names, and
+"BlackRock Fund Advisors", "BlackRock Institutional Trust Company" and
+"BlackRock, Inc." are related but economically distinct entities. Every record
+carries `holder_name_raw`, `holder_name_normalized`, `holder_entity_id` and
+`holder_identity_confidence`.
+
+`same_holder` requires **HIGH confidence — a CIK match — by default.**
+Normalisation strips legal-form wrappers only and never distinguishing words,
+so the three BlackRock entities above normalise to three different strings, by
+test. Relaxing the bar to MEDIUM is a deliberate act visible at the call site.
+
+A missed increase costs sample. An invented one costs the result.
+
+### Revised build order
+
+```
+13F parser → validate 13F → historical universe reconstruction
+   → LEGACY 13D/G PARSER (GATE DG-HISTORY-001)
+   → point-in-time validation → FREEZE DATASET → returns
+```
+
+The legacy parser moves ahead of the freeze rather than being optional,
+because historical Big Money scoring cannot be run without it under
+DG-HISTORY-001 option (A), and option (B) will not carry a 20-year study.

@@ -1076,3 +1076,91 @@ A missed increase costs sample. An invented one costs the result.
 The legacy parser moves ahead of the freeze rather than being optional,
 because historical Big Money scoring cannot be run without it under
 DG-HISTORY-001 option (A), and option (B) will not carry a 20-year study.
+
+---
+
+## 19. MEASURED — 2026-09-06: the 13F parser, and its 1000× era trap
+
+`qd/providers/holdings13f.py`, with 23 tests. Validated on 50 real filings
+across the units boundary — 25 from 2021 Q3 and 25 from 2026 Q3, 8,914
+holdings, zero fetch or parse failures.
+
+### The value-units change is the largest single error available in this data
+
+Form 13F reported the `value` field in **thousands of dollars before 2023** and
+in **whole dollars after**. Measured on live filings before writing any code:
+
+| Period | Median implied price (value ÷ shares), raw |
+|---|---|
+| 2021 Q3 | **$0.027** |
+| 2023 Q3 | $228.53 |
+| 2026 Q3 | $62.21 |
+
+A parser assuming one convention is wrong by **1000×** on the other side of
+that line — and the resulting step change in "institutional position size"
+sits exactly on a date, with no economic cause. That is the same class of
+time-dependent artefact as GATE DG-HISTORY-001, arriving through a different
+door, and a model would learn it just as readily.
+
+After normalisation, measured on the same filings:
+
+| Era | Normalised median price | Plausible ($1–$10k) |
+|---|---|---|
+| 2021 Q3 | $74.01 | 1645/1650 = 99.7% |
+| 2026 Q3 | $95.66 | 7224/7249 = 99.7% |
+
+**The boundary is taken from the regulation, not sniffed from the data.** A
+heuristic on implied price would misfire silently on a portfolio of penny
+stocks or of Berkshire A shares. `implied_price` is exposed on every holding
+precisely so a units error becomes *visible* rather than merely wrong — it is
+the check that would have caught this.
+
+### Amendments mean two opposite things
+
+`amendmentType` is `RESTATEMENT` (replaces the prior table wholesale) or
+`NEW HOLDINGS` (adds to it). **Both were observed from the same filer in the
+same quarter.** Treating them alike either double-counts a quarter's positions
+or silently drops them.
+
+An amendment carrying no type is `UNKNOWN` and does **not** replace, because
+of the two possible errors the more damaging is assuming replacement: a dropped
+holding reads as a sale that never happened.
+
+### 13F-NT is not a manager holding nothing
+
+**9 of 50 covers sampled (18%) were notices** — a manager stating that another
+filer reports their holdings. They carry no information table by design.
+Scoring them as zero would understate ownership for every manager who reports
+through a parent, systematically. `HoldingsState.REPORTED_ELSEWHERE` keeps
+that distinct from `NO_HOLDINGS`, and only the latter is evidence of absence.
+Three further filings were combination reports, where some holdings are here
+and some elsewhere.
+
+### SH versus PRN
+
+`sshPrnamtType` is `SH` for a share count and `PRN` for a principal amount — a
+face value in dollars, on a note — in the same field. Summing them adds bond
+principal to equity share counts and produces positions that look enormous.
+Only `SH` rows return true from `is_equity_position`.
+
+### Registered: no prior quarter means no new positions
+
+`net_new_positions` returns an empty list when there is no prior quarter, never
+the whole current holding set. The first quarter of an archive is not a quarter
+in which every institution bought everything, and treating it that way would
+put an accumulation spike at the start of every backtest — precisely where a
+walk-forward is most likely to mistake it for signal.
+
+### Why this remains the lowest-weighted component
+
+Nothing measured here changes the design's judgement that 13F is confirmation
+only, at 10%, never a trigger. A holding reported on 14 February may have been
+opened on 2 October and closed on 5 January, six weeks before anyone could read
+about it. Falsification test 4 stands: **if 13F breadth scores as the strongest
+factor, suspect a leak in the quarter-end-to-filing-date join before believing
+it.**
+
+### Three forms, three date formats
+
+Recorded because it has already caused one bug in this project: Form 4 writes
+`YYYY-MM-DD`, Schedule 13D/G writes `MM/DD/YYYY`, and 13F writes `MM-DD-YYYY`.

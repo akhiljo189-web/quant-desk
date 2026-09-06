@@ -95,7 +95,7 @@ engine over it. It should report **no trades** — synthetic data has no
 structure, so trading it would indicate a leak rather than a discovery.
 
 ```bash
-python3 -m unittest discover -s tests    # 331 tests
+python3 -m unittest discover -s tests    # 396 tests
 python3 -m qd.cli gate --live            # why live trading is blocked
 python3 -m qd.cli replay --symbols AAPL,MSFT --cost 2.0
 python3 -m qd.cli journal                # what it did, and what it declined
@@ -131,10 +131,15 @@ override a deliberately-set one).
 default **Trusted** network allowlist, so requests fail with a `403 to CONNECT`
 policy denial at the egress proxy *before any key is used* — which looks like an
 auth failure and is not one. Set the environment's Network access to **Custom**
-and allow `api.polygon.io`, `finnhub.io`, and (for paper trading)
-`paper-api.alpaca.markets` and `data.alpaca.markets`, keeping the default
-package-manager list ticked. Network policy and environment variables are both
-read once at container start, so changes need a new session.
+and allow `api.polygon.io`, `finnhub.io`, `www.sec.gov`, `data.sec.gov`, and
+(for paper trading) `paper-api.alpaca.markets` and `data.alpaca.markets`,
+keeping the default package-manager list ticked. Network policy and environment
+variables are both read once at container start, so changes need a new session.
+
+The two SEC hosts matter more than they look: `qd/providers/edgar.py` and
+`qd/providers/xbrl.py` are the point-in-time backbone, and they are free — but
+they are denied by the same policy as the paid vendors, so a session without
+them has no announcement instants and no fundamentals at all.
 
 ---
 
@@ -253,7 +258,7 @@ risk, never to sit on it.
 
 ## Honest status
 
-- The **infrastructure** is built and tested: 331 tests, including explicit
+- The **infrastructure** is built and tested: 396 tests, including explicit
   look-ahead guards and a null test proving the evaluator reports NO EDGE on
   random data.
 - **No edge has been demonstrated**, and the hypothesis above is expected to
@@ -305,7 +310,7 @@ research/
   replay.py        walk-forward over the real engine
   evaluate.py      cost stress, ordering band, folds -> verdict -> edge proof
   synthetic.py     deterministic fake data for the null test
-tests/             331 tests
+tests/             396 tests
 ```
 
 ## Licence
